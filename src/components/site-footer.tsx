@@ -15,8 +15,8 @@ export function SiteFooter() {
               <span className="font-bold text-ink">{PROJECT_NAME}</span>
             </div>
             <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-soft">
-              Gemeinsam dokumentieren wir, wann und wie stark Gerüche in der Nachbarschaft
-              auftreten. Anonym, ohne Registrierung.
+              Wir halten fest, wann und wie stark es in der Nachbarschaft riecht – als Grundlage
+              für die Kontrollen der Stadt. Anonym, ohne Registrierung.
             </p>
           </div>
 

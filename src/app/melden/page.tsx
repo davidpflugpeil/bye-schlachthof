@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Geruch melden",
   description:
-    "Halte in wenigen Sekunden fest, wie stark es gerade riecht. Anonym und ohne Registrierung.",
+    "Halte in wenigen Sekunden fest, wie stark es gerade riecht – damit die Stadt ihre Kontrollen gezielt ansetzen kann. Anonym und ohne Registrierung.",
 };
 
 export default async function ReportPage() {

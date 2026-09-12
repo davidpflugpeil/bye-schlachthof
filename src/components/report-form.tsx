@@ -281,8 +281,8 @@ function Confirmation({
           Meldung gespeichert
         </h1>
         <p className="mt-2.5 max-w-md text-base leading-relaxed text-ink-soft">
-          Vielen Dank. Deine Meldung hilft dabei, die Geruchsbelastung nachvollziehbar zu
-          dokumentieren.
+          Vielen Dank. Deine Meldung hilft dabei, den Geruch einem Zeitpunkt und einer
+          Windrichtung zuzuordnen – und damit den Kontrollen der Stadt eine Spur zu geben.
         </p>
       </div>
 

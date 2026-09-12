@@ -18,11 +18,11 @@ const schrift = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl()),
   title: {
-    default: `${PROJECT_NAME} – Geruchsbelastung gemeinsam dokumentieren`,
+    default: `${PROJECT_NAME} – Geruch melden für gezielte Kontrollen`,
     template: `%s · ${PROJECT_NAME}`,
   },
   description:
-    "Melde Geruchsbelästigung in wenigen Sekunden. Gemeinsam dokumentieren wir, wann und wie stark Gerüche in der Nachbarschaft auftreten – anonym und ohne Registrierung.",
+    "Melde Geruch in wenigen Sekunden. Zeitpunkt, Stärke und Windrichtung ergeben das Muster, mit dem die Stadt ihre Kontrollen am Schlachthof gezielt ansetzen kann – anonym und ohne Registrierung.",
   applicationName: PROJECT_NAME,
   manifest: "/manifest.webmanifest",
   icons: {
@@ -43,9 +43,9 @@ export const metadata: Metadata = {
     type: "website",
     locale: "de_DE",
     siteName: PROJECT_NAME,
-    title: `${PROJECT_NAME} – Geruchsbelastung gemeinsam dokumentieren`,
+    title: `${PROJECT_NAME} – Geruch melden für gezielte Kontrollen`,
     description:
-      "Melde Geruchsbelästigung in wenigen Sekunden. Anonym, ohne Registrierung, mit Wetter- und Winddaten.",
+      "Melde Geruch in wenigen Sekunden. Zeitpunkt, Stärke und Windrichtung helfen der Stadt, ihre Kontrollen am Schlachthof gezielt anzusetzen.",
   },
   robots: { index: true, follow: true },
 };

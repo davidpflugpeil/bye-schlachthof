@@ -85,9 +85,10 @@ export default async function HomePage() {
           Wozu werden die Daten gesammelt?
         </h2>
         <p className="mt-2 max-w-2xl text-base leading-relaxed text-ink-soft sm:text-[1.0625rem]">
-          Gemeinsam dokumentieren wir, wann und wie stark Gerüche in der Nachbarschaft auftreten.
-          Jede Meldung hilft, Zeitpunkt und Ausmaß der Geruchsbelastung besser nachvollziehbar zu
-          machen.
+          Wir stehen im Austausch mit der Stadt, und die Stadt prüft den Schlachthof bereits mit
+          Stichproben vor Ort. Um dabei die richtigen Zeitpunkte zu treffen und einzelne
+          Betriebsabläufe als Ursache einzugrenzen, fehlt bisher das Muster: wann es riecht, wie
+          stark, und bei welcher Windrichtung. Genau das entsteht aus deinen Meldungen.
         </p>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-3 sm:gap-4">
@@ -104,7 +105,7 @@ export default async function HomePage() {
           <Step
             icon={<BarChart3 className="size-5" aria-hidden />}
             title="3 · Auswerten"
-            text="Aus vielen Meldungen entsteht eine sachliche Übersicht über Zeitpunkte, Häufigkeit und Ausmaß."
+            text="Aus vielen Meldungen entsteht das Muster aus Zeitpunkt, Stärke und Windrichtung, mit dem die Stadt gezielt prüfen kann."
           />
         </div>
 

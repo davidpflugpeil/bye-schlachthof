@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: PROJECT_NAME,
     short_name: "Bye Schlachthof",
     description:
-      "Geruchsbelastung in der Nachbarschaft gemeinsam dokumentieren – anonym und in wenigen Sekunden.",
+      "Geruch in der Nachbarschaft festhalten, damit die Stadt gezielt prüfen kann – anonym und in wenigen Sekunden.",
     lang: "de",
     start_url: "/",
     scope: "/",

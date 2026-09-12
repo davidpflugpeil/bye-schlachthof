@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Über das Projekt",
   description:
-    "Warum wir Geruchsmeldungen sammeln, was gespeichert wird und was öffentlich sichtbar ist.",
+    "Warum wir Geruchsmeldungen sammeln, wie die Stadt sie nutzt, was gespeichert wird und was öffentlich sichtbar ist.",
 };
 
 export default async function AboutPage() {
@@ -26,9 +26,9 @@ export default async function AboutPage() {
           Über das Projekt
         </h1>
         <p className="mt-4 text-[1.0625rem] leading-relaxed text-ink-soft sm:text-lg">
-          Gemeinsam dokumentieren wir, wann und wie stark Gerüche in der Nachbarschaft auftreten.
-          Jede einzelne Meldung hilft dabei, Zeitpunkt und Ausmaß der Geruchsbelastung
-          nachvollziehbar festzuhalten.
+          Die Stadt prüft den Schlachthof bereits mit Stichproben vor Ort. Damit sie dabei die
+          richtigen Zeitpunkte trifft und einzelne Betriebsabläufe als Ursache eingrenzen kann,
+          halten wir hier fest, wann und wie stark es in der Nachbarschaft riecht.
         </p>
       </div>
 
@@ -64,14 +64,13 @@ export default async function AboutPage() {
           <Section title="Worum es geht">
             <p>
               Im Schlachthofviertel und den angrenzenden Straßen tritt immer wieder deutlich
-              wahrnehmbarer Geruch auf. Wie häufig das passiert, wie stark es jeweils riecht und
-              unter welchen Wetterbedingungen – das ist bisher kaum dokumentiert. Einzelne
-              Beschwerden bleiben Einzelfälle.
+              wahrnehmbarer Geruch auf. Einzelne Beschwerden bleiben dabei Einzelfälle: Sie sagen
+              wenig darüber, wann der Geruch auftritt und unter welchen Bedingungen.
             </p>
             <p>
-              Diese Website sammelt die Wahrnehmungen aus der Nachbarschaft an einer Stelle. So
-              entsteht über die Zeit eine sachliche Grundlage: Wann tritt Geruch auf, wie stark ist
-              er, und welche Windrichtung herrschte zu diesem Zeitpunkt.
+              Wir stehen deshalb im Austausch mit der Stadt und versuchen es mit diesem Weg. Diese
+              Website sammelt die Wahrnehmungen aus der Nachbarschaft an einer Stelle – mit
+              Zeitpunkt, Stärke und der Windrichtung, die zu diesem Zeitpunkt herrschte.
             </p>
           </Section>
 
@@ -107,22 +106,28 @@ export default async function AboutPage() {
 
           <Section title="Wozu die Daten verwendet werden">
             <p>
-              Die zusammengeführten Meldungen können als Grundlage für Gespräche mit Behörden,
-              Betrieben und der Stadtverwaltung dienen. Entscheidend ist dabei die Sachlichkeit:
-              Die Auswertung zeigt, was gemeldet wurde – nicht mehr und nicht weniger.
+              Die Stadt führt am Schlachthof bereits Stichproben durch. Was dabei fehlt, ist der
+              Zusammenhang: zu welchen Zeiten der Geruch auftritt, wie stark er ist und aus welcher
+              Richtung der Wind kam. Erst damit lassen sich die Kontrollen gezielt ansetzen und
+              einzelne Betriebsabläufe als Ursache eingrenzen.
+            </p>
+            <p>
+              Es geht darum, die Ursache benennen zu können. Je genauer das gelingt, desto
+              konkreter lässt sich an den Abläufen im Betrieb etwas ändern.
             </p>
             <p>
               Die Meldungen sind subjektive Wahrnehmungen und ersetzen keine amtliche Messung. Genau
-              deshalb ist die Menge der Meldungen wichtig: Erst viele Angaben über einen längeren
-              Zeitraum ergeben ein belastbares Bild.
+              deshalb zählt die Menge: Erst viele Angaben über einen längeren Zeitraum ergeben ein
+              belastbares Muster.
             </p>
           </Section>
 
           <Section title="Wer dahintersteht">
             <p>
-              Das Projekt wird ehrenamtlich aus der Nachbarschaft betrieben. Es ist weder mit einer
-              Behörde noch mit einem Unternehmen verbunden und verfolgt keine kommerziellen
-              Interessen.
+              Das Projekt wird ehrenamtlich aus der Nachbarschaft betrieben. Es gehört weder zu
+              einer Behörde noch zu einem Unternehmen und verfolgt keine kommerziellen Interessen.
+              Mit der Stadt stehen wir im Austausch; die Auswertung bleibt davon unabhängig und
+              zeigt, was gemeldet wurde – nicht mehr und nicht weniger.
             </p>
           </Section>
         </div>
