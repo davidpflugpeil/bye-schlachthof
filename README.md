@@ -46,7 +46,7 @@ The app then runs on <http://localhost:3000>.
 | `BASE_URL` | for production | Public address, read at runtime. Drives the CORS allowance for writes. |
 | `API_CORS_ORIGINS` | no | Additional origins allowed to write, comma separated. `*` opens it fully. |
 | `NEXT_PUBLIC_BASE_URL` | for production | Public address for metadata and the shortcut page. Inlined at build time. |
-| `NEXT_PUBLIC_SHORTCUT_URL` | no | iCloud link of the finished shortcut. When set, the install button appears. |
+| `NEXT_PUBLIC_SHORTCUT_URL` | no | iCloud link of the shortcut. Overrides the published one baked into the page. |
 
 ---
 
@@ -258,9 +258,12 @@ idempotency, and prints a sample response. Pass a token as the second argument.
 5. **Show Notification** with the value of `message` — it fits both success and
    failure.
 
-Once the shortcut is finished and shared as an iCloud link, put that link into
-`NEXT_PUBLIC_SHORTCUT_URL`. The `/kurzbefehl` page then shows the install button
-instead of the placeholder note.
+The finished shortcut is published at
+<https://www.icloud.com/shortcuts/42f368d5edb34ff1aa619423c5cbcbfa> and the
+`/kurzbefehl` page links to it directly. A fork that shares its own shortcut
+sets `NEXT_PUBLIC_SHORTCUT_URL` to that link instead — note it is inlined at
+build time, so on Docker it has to be passed as a build argument, not only as a
+runtime variable.
 
 ---
 

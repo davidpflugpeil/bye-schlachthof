@@ -33,9 +33,13 @@ const SETUP_STEPS = [
   },
 ];
 
-export default function ShortcutPage() {
-  const shortcutUrl = process.env.NEXT_PUBLIC_SHORTCUT_URL?.trim();
+// Public iCloud link of the published shortcut. NEXT_PUBLIC_SHORTCUT_URL still
+// wins when set, so a fork that ships its own shortcut needs no code change.
+const SHORTCUT_URL =
+  process.env.NEXT_PUBLIC_SHORTCUT_URL?.trim() ||
+  "https://www.icloud.com/shortcuts/42f368d5edb34ff1aa619423c5cbcbfa";
 
+export default function ShortcutPage() {
   return (
     <div className="page-shell py-6 sm:py-10">
       {/* Intro */}
@@ -52,24 +56,13 @@ export default function ShortcutPage() {
         </p>
 
         <div className="mt-6">
-          {shortcutUrl ? (
-            <ButtonLink href={shortcutUrl} size="xl" target="_blank" rel="noopener noreferrer">
-              <Sparkles className="size-5" aria-hidden />
-              Kurzbefehl installieren
-            </ButtonLink>
-          ) : (
-            <div className="rounded-xl border border-sand bg-sand-soft p-4 sm:p-5">
-              <p className="text-[0.9375rem] leading-relaxed text-ink">
-                <span className="font-semibold">Der Kurzbefehl wird gerade fertiggestellt.</span>{" "}
-                Sobald er bereitsteht, erscheint hier ein Knopf zum direkten Installieren. Bis
-                dahin kannst du eine Meldung über die Website abgeben – das dauert ebenfalls nur
-                wenige Sekunden.
-              </p>
-              <ButtonLink href="/melden" size="md" className="mt-4">
-                Geruch melden
-              </ButtonLink>
-            </div>
-          )}
+          <ButtonLink href={SHORTCUT_URL} size="xl" target="_blank" rel="noopener noreferrer">
+            <Sparkles className="size-5" aria-hidden />
+            Kurzbefehl installieren
+          </ButtonLink>
+          <p className="mt-3 text-sm text-ink-soft">
+            Öffnet die App „Kurzbefehle“ auf iPhone und iPad.
+          </p>
         </div>
       </div>
 
