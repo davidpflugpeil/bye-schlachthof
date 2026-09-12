@@ -692,10 +692,6 @@ export function clientByPublicId(
   return row ? { ...toClient(row), secretHash: row.secret_hash as string } : null;
 }
 
-export function touchClient(id: number): void {
-  db().prepare(`UPDATE clients SET last_seen_at = datetime('now') WHERE id = ?`).run(id);
-}
-
 export function countClientReport(id: number): void {
   db()
     .prepare(

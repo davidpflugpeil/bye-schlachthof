@@ -354,6 +354,12 @@ street is filled in asynchronously, and keyed on it a burst arriving faster
 than the lookups would slip through while the rows still said nothing about
 where they came from.
 
+The list of recent reports is not deduplicated — it is a log, and every stored
+report belongs in it. So a sender who reports repeatedly within one hour
+appears several times in the list while counting once in the figures. Under a
+real flood the brake keeps those rows out of the list too, since it is built
+from published reports only.
+
 ### The rest
 
 - **Only Munich.** Coordinates outside the frame in `src/lib/geo.ts` are

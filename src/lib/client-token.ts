@@ -26,7 +26,7 @@ export type EnrollmentResult = { ok: true; token: string } | { ok: false; messag
 const GENERIC_ERROR =
   "Die Freischaltung hat nicht geklappt. Bitte prüfe deine Verbindung und lade die Seite neu.";
 
-export function storedToken(): string | null {
+function storedToken(): string | null {
   try {
     return window.localStorage.getItem(STORAGE_KEY);
   } catch {
@@ -36,7 +36,7 @@ export function storedToken(): string | null {
   }
 }
 
-export function rememberToken(token: string): void {
+function rememberToken(token: string): void {
   try {
     window.localStorage.setItem(STORAGE_KEY, token);
   } catch {

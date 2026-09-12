@@ -49,7 +49,7 @@ export function clientIp(request: Request): string | null {
  * prefix — that is what a household gets assigned, so the individual address
  * inside it cannot be rotated to gain a fresh quota.
  */
-export function normalizeIp(raw: string): string {
+function normalizeIp(raw: string): string {
   let value = raw.trim().toLowerCase();
 
   // "[2001:db8::1]:443" → "2001:db8::1"
