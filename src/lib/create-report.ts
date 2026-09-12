@@ -6,9 +6,11 @@ import { after } from "next/server";
 import {
   attachLocation,
   attachWeather,
+  countClientReport,
   createReport,
   rememberIdempotencyKey,
   reportById,
+  reportCountFromClient,
   reportCountFromReporter,
   reportForIdempotencyKey,
 } from "./db";
@@ -16,13 +18,45 @@ import { clientIp } from "./client-ip";
 import { isInArea, isValidCoordinate, resolveLocation, searchAddress } from "./geo";
 import { fetchWeather } from "./weather";
 import { DURATIONS, ODOR_TYPES } from "./format";
-import type { Duration, OdorType, Report, ReportSource, Severity } from "./types";
+import type {
+  Duration,
+  OdorType,
+  Report,
+  ReportingClient,
+  ReportSource,
+  Severity,
+} from "./types";
 import type { ErrorCode } from "./api";
 
+/**
+ * How much a sender is trusted. Nobody has an account, so trust is what the
+ * sender brought along: nothing, an enrolled browser, or an enrolled shortcut
+ * whose household shares one address.
+ */
+export type TrustTier = "anonymous" | "web" | "shortcut";
+
+export interface Quota {
+  perHour: number;
+  perDay: number;
+}
+
+export const QUOTAS: Record<TrustTier, Quota> = {
+  anonymous: { perHour: 5, perDay: 15 },
+  web: { perHour: 12, perDay: 40 },
+  shortcut: { perHour: 40, perDay: 120 },
+};
+
+/**
+ * Ceiling for one address once devices are enrolled. The token carries the
+ * quota, so several devices in a household each get their own — this only
+ * stops somebody from stacking a stock of tokens behind one connection.
+ */
+export const ADDRESS_QUOTA: Quota = { perHour: 60, perDay: 200 };
+
 /** Maximum reports per sender and hour. */
-export const REPORTS_PER_HOUR = 12;
+export const REPORTS_PER_HOUR = QUOTAS.web.perHour;
 /** For clients with a valid token — a household usually shares one address. */
-export const REPORTS_PER_HOUR_WITH_TOKEN = 40;
+export const REPORTS_PER_HOUR_WITH_TOKEN = QUOTAS.shortcut.perHour;
 export const COMMENT_MAX_LENGTH = 500;
 export const BACKDATE_HOURS = 24;
 
@@ -43,8 +77,9 @@ export interface SubmitInput {
 export interface SubmitContext {
   source: ReportSource;
   reporterHash: string | null;
-  /** Hourly cap for this sender. */
-  maxPerHour: number;
+  tier: TrustTier;
+  /** The enrolled device, when the request carried a valid token. */
+  client: ReportingClient | null;
   idempotencyKey: string | null;
 }
 
@@ -135,17 +170,8 @@ export async function submitReport(
   // Checked before the location is resolved: an address costs an outbound
   // Nominatim request, and a sender over their quota must not be able to
   // trigger those — that is what gets the server blocked by OSM.
-  if (
-    context.reporterHash &&
-    reportCountFromReporter(context.reporterHash, 60) >= context.maxPerHour
-  ) {
-    return {
-      ok: false,
-      code: "too_many_reports",
-      message:
-        "Es wurden gerade sehr viele Meldungen von diesem Gerät gesendet. Bitte versuche es in einer Stunde noch einmal.",
-    };
-  }
+  const exceeded = checkQuota(context);
+  if (exceeded) return exceeded;
 
   const location = await resolveInputLocation(input);
   if (!location.ok) return location;
@@ -162,6 +188,7 @@ export async function submitReport(
       comment: readComment(input.comment),
       source: context.source,
       reporterHash: context.reporterHash,
+      clientId: context.client?.id ?? null,
     });
   } catch {
     return {
@@ -176,6 +203,14 @@ export async function submitReport(
       rememberIdempotencyKey(context.idempotencyKey, report.id);
     } catch {
       /* Without the marker the report still works. */
+    }
+  }
+
+  if (context.client) {
+    try {
+      countClientReport(context.client.id);
+    } catch {
+      /* Only feeds the quota and the admin list. */
     }
   }
 
@@ -197,6 +232,46 @@ export async function submitReport(
   }
 
   return { ok: true, report: reportById(report.id) ?? report, duplicate: false };
+}
+
+/**
+ * Two limits in sequence: the token carries the sender's own quota, the
+ * address carries a ceiling above it. Without a token there is only the
+ * address, and then it is the tight anonymous quota — which is what makes
+ * enrolling worthwhile without ever making it mandatory.
+ */
+function checkQuota(context: SubmitContext): SubmitResult | null {
+  const quota = QUOTAS[context.tier];
+
+  if (context.client) {
+    if (
+      reportCountFromClient(context.client.id, 60) >= quota.perHour ||
+      reportCountFromClient(context.client.id, 24 * 60) >= quota.perDay
+    ) {
+      return tooMany();
+    }
+  }
+
+  if (context.reporterHash) {
+    const ceiling = context.client ? ADDRESS_QUOTA : quota;
+    if (
+      reportCountFromReporter(context.reporterHash, 60) >= ceiling.perHour ||
+      reportCountFromReporter(context.reporterHash, 24 * 60) >= ceiling.perDay
+    ) {
+      return tooMany();
+    }
+  }
+
+  return null;
+}
+
+function tooMany(): SubmitResult {
+  return {
+    ok: false,
+    code: "too_many_reports",
+    message:
+      "Es wurden gerade sehr viele Meldungen von diesem Gerät gesendet. Bitte versuche es in einer Stunde noch einmal.",
+  };
 }
 
 type LocationResult =

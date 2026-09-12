@@ -2,8 +2,11 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
+import { CLIENT_TOKEN_HEADER, TOKEN_HEADER } from "./api-headers";
+
+export { CLIENT_TOKEN_HEADER, TOKEN_HEADER };
+
 export const API_VERSION = "1";
-export const TOKEN_HEADER = "X-Report-Token";
 
 /* ------------------------------------------------------------------ */
 /* Error codes                                                         */
@@ -76,7 +79,7 @@ export type Access = "read" | "write";
 export function corsHeaders(request: Request, access: Access): Record<string, string> {
   const shared = {
     "Access-Control-Allow-Methods": access === "read" ? "GET, OPTIONS" : "POST, OPTIONS",
-    "Access-Control-Allow-Headers": `Content-Type, ${TOKEN_HEADER}, Authorization, Idempotency-Key`,
+    "Access-Control-Allow-Headers": `Content-Type, ${TOKEN_HEADER}, ${CLIENT_TOKEN_HEADER}, Authorization, Idempotency-Key`,
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };

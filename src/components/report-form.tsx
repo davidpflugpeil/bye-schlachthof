@@ -9,6 +9,7 @@ import { DURATIONS, ODOR_TYPES, SEVERITY_LEVELS } from "@/lib/format";
 import type { ApiReport } from "@/lib/api-report";
 import type { Duration, OdorType, Severity } from "@/lib/types";
 import type { StoredLocation } from "@/lib/location";
+import { clientTokenHeaders, ensureClientToken, forgetToken } from "@/lib/client-token";
 import { Button, ButtonLink } from "./ui/button";
 import { Card } from "./ui/card";
 import { inputClasses, FormField } from "./ui/form-field";
@@ -45,6 +46,14 @@ export function ReportForm() {
   const ready = severity !== null && location !== null;
   const selectedLevel = SEVERITY_LEVELS.find((level) => level.value === severity);
 
+  // Enrols this browser while the form is being filled in. Takes a moment of
+  // computation and is done long before anyone taps "send"; if it fails, the
+  // report goes out without a token and simply counts against the tighter
+  // anonymous quota.
+  React.useEffect(() => {
+    void ensureClientToken();
+  }, []);
+
   async function submit() {
     if (!ready || state === "submitting") return;
     setState("submitting");
@@ -54,13 +63,14 @@ export function ReportForm() {
     const idempotencyKey =
       idempotencyKeyRef.current ?? (idempotencyKeyRef.current = newKey());
 
-    try {
-      const response = await fetch("/api/v1/reports", {
+    const send = () =>
+      fetch("/api/v1/reports", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           // Prevents a second report if the response is lost in transit.
           "Idempotency-Key": idempotencyKey,
+          ...clientTokenHeaders(),
         },
         body: JSON.stringify({
           severity,
@@ -72,11 +82,25 @@ export function ReportForm() {
         }),
       });
 
-      const data = (await response.json()) as {
-        ok: boolean;
-        error?: { code: string; message: string };
-        report?: ApiReport;
-      };
+    type ReportResponse = {
+      ok: boolean;
+      error?: { code: string; message: string };
+      report?: ApiReport;
+    };
+
+    try {
+      let response = await send();
+      let data = (await response.json()) as ReportResponse;
+
+      // A token this server no longer knows — after a database reset, say.
+      // Drop it, enrol again and send once more. A revoked token is a
+      // different code and deliberately not retried.
+      if (data.error?.code === "unauthorized") {
+        forgetToken();
+        await ensureClientToken();
+        response = await send();
+        data = (await response.json()) as ReportResponse;
+      }
 
       if (!response.ok || !data.ok || !data.report) {
         const text =

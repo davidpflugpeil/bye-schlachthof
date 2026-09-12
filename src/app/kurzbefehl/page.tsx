@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Crosshair, Hand, Home, MapPin, Smartphone, Sparkles } from "lucide-react";
+import { Crosshair, Hand, Home, KeyRound, MapPin, Smartphone, Sparkles } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
+import { ShortcutToken } from "@/components/shortcut-token";
 
 export const metadata: Metadata = {
   title: "iPhone-Kurzbefehl",
@@ -26,6 +27,11 @@ const SETUP_STEPS = [
     icon: <Home className="size-5" aria-hidden />,
     title: "Auf den Homescreen legen",
     text: "In der App „Kurzbefehle“ auf die drei Punkte tippen und „Zum Home-Bildschirm“ wählen. So ist der Knopf immer griffbereit.",
+  },
+  {
+    icon: <KeyRound className="size-5" aria-hidden />,
+    title: "Token eintragen",
+    text: "Erstelle unten einen Schlüssel für dieses Gerät und trage ihn im Kurzbefehl als Kopfzeile ein. Damit zählen deine Meldungen zu deinem Gerät statt zu deinem Anschluss.",
   },
   {
     icon: <Hand className="size-5" aria-hidden />,
@@ -131,7 +137,7 @@ export default function ShortcutPage() {
           So richtest du ihn ein
         </h2>
 
-        <ol className="mt-5 grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+        <ol className="mt-5 grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
           {SETUP_STEPS.map((step, index) => (
             <li key={step.title}>
               <Card className="flex h-full flex-col">
@@ -149,6 +155,10 @@ export default function ShortcutPage() {
             </li>
           ))}
         </ol>
+
+        <div className="mt-5 max-w-2xl">
+          <ShortcutToken />
+        </div>
       </section>
 
       {/* Technical details, deliberately understated */}

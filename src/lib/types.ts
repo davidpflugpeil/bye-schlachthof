@@ -10,6 +10,26 @@ export type ReportSource = "web" | "shortcut";
 
 export type ReportStatus = "visible" | "hidden";
 
+/** How a reporting client reaches the API. */
+export type ClientKind = "web" | "shortcut";
+
+export type ClientStatus = "active" | "revoked";
+
+/**
+ * An enrolled client. Carries no account and no personal data — only the
+ * knowledge that somebody solved a challenge once and has been reporting
+ * since. Enough for a quota, enough to revoke.
+ */
+export interface ReportingClient {
+  id: number;
+  publicId: string;
+  kind: ClientKind;
+  status: ClientStatus;
+  createdAt: string;
+  lastSeenAt: string | null;
+  reportCount: number;
+}
+
 export type WeatherStatus = "pending" | "ok" | "failed";
 
 export interface Weather {

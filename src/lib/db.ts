@@ -6,10 +6,13 @@ import path from "node:path";
 import crypto from "node:crypto";
 
 import type {
+  ClientKind,
+  ClientStatus,
   Duration,
   LocationInfo,
   OdorType,
   Report,
+  ReportingClient,
   ReportSource,
   ReportStatus,
   Severity,
@@ -97,7 +100,39 @@ function createSchema(db: Database.Database) {
       report_id   INTEGER NOT NULL,
       created_at  TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS clients (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      public_id      TEXT NOT NULL UNIQUE,
+      secret_hash    TEXT NOT NULL,
+      kind           TEXT NOT NULL DEFAULT 'web',
+      status         TEXT NOT NULL DEFAULT 'active',
+      reporter_hash  TEXT,
+      report_count   INTEGER NOT NULL DEFAULT 0,
+      created_at     TEXT NOT NULL,
+      last_seen_at   TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_clients_status   ON clients (status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_clients_reporter ON clients (reporter_hash, created_at DESC);
+
+    -- A solved challenge may mint exactly one token; the row expires with it.
+    CREATE TABLE IF NOT EXISTS used_challenges (
+      signature   TEXT PRIMARY KEY,
+      expires_at  TEXT NOT NULL
+    );
   `);
+
+  // Existing databases predate the column — CREATE TABLE IF NOT EXISTS would
+  // not add it.
+  addColumn(db, "reports", "client_id", "INTEGER");
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reports_client ON reports (client_id, reported_at DESC);`);
+}
+
+function addColumn(db: Database.Database, table: string, column: string, definition: string) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (columns.some((entry) => entry.name === column)) return;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 
 /**
@@ -216,6 +251,19 @@ function hoursAgo(hours: number): string {
   return new Date(Date.now() - hours * 3600_000).toISOString();
 }
 
+function minutesAgo(minutes: number): string {
+  return new Date(Date.now() - minutes * 60_000).toISOString();
+}
+
+/**
+ * `reported_at` holds ISO-8601, but `datetime('now')` writes
+ * "YYYY-MM-DD HH:MM:SS". Columns filled by SQLite have to be compared in that
+ * second form.
+ */
+function sqlTime(iso: string): string {
+  return iso.slice(0, 19).replace("T", " ");
+}
+
 /* ------------------------------------------------------------------ */
 /* Writes                                                             */
 /* ------------------------------------------------------------------ */
@@ -230,6 +278,8 @@ export interface NewReport {
   comment: string | null;
   source: ReportSource;
   reporterHash: string | null;
+  clientId?: number | null;
+  status?: ReportStatus;
 }
 
 export function createReport(input: NewReport): Report {
@@ -240,13 +290,19 @@ export function createReport(input: NewReport): Report {
     .prepare(
       `INSERT INTO reports (
          public_id, reported_at, severity, latitude, longitude,
-         odor_type, duration, comment, source, reporter_hash
+         odor_type, duration, comment, source, reporter_hash, client_id, status
        ) VALUES (
          @publicId, @reportedAt, @severity, @latitude, @longitude,
-         @odorType, @duration, @comment, @source, @reporterHash
+         @odorType, @duration, @comment, @source, @reporterHash, @clientId, @status
        )`,
     )
-    .run({ ...input, publicId, reportedAt });
+    .run({
+      ...input,
+      publicId,
+      reportedAt,
+      clientId: input.clientId ?? null,
+      status: input.status ?? "visible",
+    });
 
   return reportById(Number(info.lastInsertRowid))!;
 }
@@ -511,4 +567,131 @@ export function rememberIdempotencyKey(key: string, reportId: number): void {
        VALUES (?, ?, datetime('now'))`,
     )
     .run(key, reportId);
+}
+
+/* ------------------------------------------------------------------ */
+/* Clients                                                             */
+/* ------------------------------------------------------------------ */
+
+function toClient(row: Row): ReportingClient {
+  return {
+    id: row.id as number,
+    publicId: row.public_id as string,
+    kind: row.kind as ClientKind,
+    status: row.status as ClientStatus,
+    createdAt: row.created_at as string,
+    lastSeenAt: (row.last_seen_at as string) ?? null,
+    reportCount: row.report_count as number,
+  };
+}
+
+export interface NewClient {
+  publicId: string;
+  secretHash: string;
+  kind: ClientKind;
+  reporterHash: string | null;
+}
+
+export function createClient(input: NewClient): ReportingClient {
+  const info = db()
+    .prepare(
+      `INSERT INTO clients (public_id, secret_hash, kind, reporter_hash, created_at)
+       VALUES (@publicId, @secretHash, @kind, @reporterHash, datetime('now'))`,
+    )
+    .run(input);
+
+  return clientById(Number(info.lastInsertRowid))!;
+}
+
+export function clientById(id: number): ReportingClient | null {
+  const row = db().prepare(`SELECT * FROM clients WHERE id = ?`).get(id) as Row | undefined;
+  return row ? toClient(row) : null;
+}
+
+/** Returns the stored secret hash alongside the client, for verification. */
+export function clientByPublicId(
+  publicId: string,
+): (ReportingClient & { secretHash: string }) | null {
+  const row = db().prepare(`SELECT * FROM clients WHERE public_id = ?`).get(publicId) as
+    | Row
+    | undefined;
+  return row ? { ...toClient(row), secretHash: row.secret_hash as string } : null;
+}
+
+export function touchClient(id: number): void {
+  db().prepare(`UPDATE clients SET last_seen_at = datetime('now') WHERE id = ?`).run(id);
+}
+
+export function countClientReport(id: number): void {
+  db()
+    .prepare(
+      `UPDATE clients
+       SET report_count = report_count + 1, last_seen_at = datetime('now')
+       WHERE id = ?`,
+    )
+    .run(id);
+}
+
+export function setClientStatus(id: number, status: ClientStatus): void {
+  db().prepare(`UPDATE clients SET status = ? WHERE id = ?`).run(status, id);
+}
+
+/**
+ * Hides everything one client ever sent. Used together with revoking, so a
+ * single click undoes a flood instead of the reports having to be picked off
+ * one by one.
+ */
+export function hideReportsFromClient(id: number): number {
+  const info = db()
+    .prepare(`UPDATE reports SET status = 'hidden' WHERE client_id = ? AND status != 'hidden'`)
+    .run(id);
+  return info.changes;
+}
+
+export function listClients(limit = 100): ReportingClient[] {
+  const rows = db()
+    .prepare(`SELECT * FROM clients ORDER BY last_seen_at DESC NULLS LAST, created_at DESC LIMIT ?`)
+    .all(limit) as Row[];
+  return rows.map(toClient);
+}
+
+export function clientCount(): number {
+  const row = db().prepare(`SELECT COUNT(*) AS n FROM clients`).get() as { n: number };
+  return row.n;
+}
+
+/** Reports this client sent inside the window — the per-token quota. */
+export function reportCountFromClient(clientId: number, minutes: number): number {
+  const row = db()
+    .prepare(`SELECT COUNT(*) AS n FROM reports WHERE client_id = ? AND reported_at >= ?`)
+    .get(clientId, minutesAgo(minutes)) as { n: number };
+  return row.n;
+}
+
+/** How many clients one address enrolled inside the window. */
+export function clientCountFromReporter(reporterHash: string, minutes: number): number {
+  const row = db()
+    .prepare(`SELECT COUNT(*) AS n FROM clients WHERE reporter_hash = ? AND created_at >= ?`)
+    .get(reporterHash, sqlTime(minutesAgo(minutes))) as { n: number };
+  return row.n;
+}
+
+/* ------------------------------------------------------------------ */
+/* Challenges                                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Records a solved challenge. Returns false if it was already spent — one
+ * solution mints one token, otherwise a single piece of work could be
+ * replayed indefinitely.
+ */
+export function claimChallenge(signature: string, expiresAt: string): boolean {
+  const connection = db();
+  connection.prepare(`DELETE FROM used_challenges WHERE expires_at < datetime('now')`).run();
+
+  const info = connection
+    .prepare(`INSERT OR IGNORE INTO used_challenges (signature, expires_at) VALUES (?, ?)`)
+    .run(signature, sqlTime(expiresAt));
+
+  return info.changes === 1;
 }

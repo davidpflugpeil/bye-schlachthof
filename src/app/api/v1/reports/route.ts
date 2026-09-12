@@ -1,4 +1,5 @@
 import {
+  CLIENT_TOKEN_HEADER,
   checkToken,
   failure,
   intParam,
@@ -7,13 +8,10 @@ import {
   success,
 } from "@/lib/api";
 import { reportMessage, toApiReport } from "@/lib/api-report";
+import { verifyClientToken } from "@/lib/clients";
 import { recentReportsSince } from "@/lib/db";
-import {
-  REPORTS_PER_HOUR,
-  REPORTS_PER_HOUR_WITH_TOKEN,
-  reporterHash,
-  submitReport,
-} from "@/lib/create-report";
+import { reporterHash, submitReport, type TrustTier } from "@/lib/create-report";
+import type { ReportingClient } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -31,11 +29,27 @@ export async function OPTIONS(request: Request) {
 export async function POST(request: Request) {
   const options = { request, access: "write" as const };
 
-  const token = checkToken(request);
-  if (token === "invalid") {
+  const legacyToken = checkToken(request);
+  if (legacyToken === "invalid") {
     return failure(
       "unauthorized",
       "Das mitgeschickte Token ist nicht gültig. Bitte richte den Kurzbefehl neu ein.",
+      options,
+    );
+  }
+
+  const client = verifyClientToken(request.headers.get(CLIENT_TOKEN_HEADER.toLowerCase()));
+  if (client.state === "invalid") {
+    return failure(
+      "unauthorized",
+      "Dieses Gerät ist nicht bekannt. Bitte richte den Kurzbefehl neu ein.",
+      options,
+    );
+  }
+  if (client.state === "revoked") {
+    return failure(
+      "token_revoked",
+      "Dieses Gerät wurde gesperrt. Bitte melde dich, wenn das ein Versehen ist.",
       options,
     );
   }
@@ -54,10 +68,14 @@ export async function POST(request: Request) {
     (typeof body.idempotencyKey === "string" ? body.idempotencyKey.trim().slice(0, 120) : "") ||
     null;
 
+  const enrolled = client.state === "valid" ? client.client : null;
+  const tier = trustTier(enrolled, legacyToken === "valid");
+
   const result = await submitReport(body, {
-    source: token === "valid" ? "shortcut" : "web",
+    source: tier === "shortcut" ? "shortcut" : "web",
     reporterHash: reporterHash(request),
-    maxPerHour: token === "valid" ? REPORTS_PER_HOUR_WITH_TOKEN : REPORTS_PER_HOUR,
+    tier,
+    client: enrolled,
     idempotencyKey,
   });
 
@@ -73,6 +91,18 @@ export async function POST(request: Request) {
     },
     { ...options, status: result.duplicate ? 200 : 201 },
   );
+}
+
+/**
+ * An enrolled device is trusted according to what it was enrolled as. The
+ * shared REPORT_TOKEN still grants the shortcut tier so existing setups keep
+ * working, but it identifies nobody — every shortcut carries the same copy.
+ * Anything without a token falls into the anonymous tier: still allowed,
+ * still without an account, only on a shorter leash.
+ */
+function trustTier(client: ReportingClient | null, legacyToken: boolean): TrustTier {
+  if (client) return client.kind === "shortcut" ? "shortcut" : "web";
+  return legacyToken ? "shortcut" : "anonymous";
 }
 
 /** Public reports from the last hours, newest first. */
