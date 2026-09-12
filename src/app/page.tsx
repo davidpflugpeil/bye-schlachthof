@@ -67,8 +67,8 @@ export default async function HomePage() {
           <p className="order-2 flex items-start gap-2.5 px-1 text-sm leading-relaxed text-ink-soft">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-sage" aria-hidden />
             <span>
-              Keine Registrierung erforderlich. Die Meldungen werden anonym gesammelt – sichtbar ist
-              nur die Straße, niemals deine Hausnummer.
+              Keine Registrierung erforderlich. Die Meldungen werden anonym gesammelt – öffentlich
+              sichtbar ist nur die Straße, niemals deine Hausnummer.
             </span>
           </p>
 

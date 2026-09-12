@@ -63,7 +63,7 @@ export default async function ReportPage() {
               </li>
               <li className="flex gap-2.5">
                 <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-sage" />
-                Öffentlich sichtbar ist die Straße – die Hausnummer wird nicht gespeichert.
+                Öffentlich sichtbar ist die Straße – die Hausnummer wird nie veröffentlicht.
               </li>
             </ul>
           </Card>

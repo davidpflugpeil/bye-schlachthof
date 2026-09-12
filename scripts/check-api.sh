@@ -79,6 +79,11 @@ check "POST location as one string"   201 "$(status -X POST "$API/reports" ${TOK
 check "POST nested location object"   201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -d '{"severity":2,"location":{"latitude":48.1258,"longitude":11.5528}}')"
 check "POST decimal comma"            201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -d '{"severity":2,"latitude":"48,1258","longitude":"11,5528"}')"
 
+# The house number is stored but admin-only. It must never reach a public
+# response — neither the created report nor the public list.
+check "POST response hides house number"  absent "$(curl -s -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -d '{"severity":2,"latitude":48.12584,"longitude":11.55283}' | grep -q -i 'housenumber\|house_number' && echo present || echo absent)"
+check "GET /reports hides house number"   absent "$(curl -s "$API/reports?limit=50" | grep -q -i 'housenumber\|house_number' && echo present || echo absent)"
+
 KEY="check-$(date +%s)-$RANDOM"
 check "POST with Idempotency-Key"     201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -H "Idempotency-Key: $KEY" -d '{"severity":4,"latitude":48.1232,"longitude":11.5560}')"
 check "POST same key (no second row)" 200 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -H "Idempotency-Key: $KEY" -d '{"severity":4,"latitude":48.1232,"longitude":11.5560}')"

@@ -85,6 +85,7 @@ const SCHEMA = `
     latitude            DOUBLE PRECISION,
     longitude           DOUBLE PRECISION,
     street              TEXT,
+    house_number        TEXT,
     district            TEXT,
     postal_code         TEXT,
     city                TEXT,
@@ -114,9 +115,12 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS location_cache (
     cell         TEXT PRIMARY KEY,
     street       TEXT,
+    house_number TEXT,
     district     TEXT,
     postal_code  TEXT,
     city         TEXT,
+    source_lat   DOUBLE PRECISION,
+    source_lon   DOUBLE PRECISION,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
   );
 
@@ -125,6 +129,13 @@ const SCHEMA = `
     report_id   INTEGER NOT NULL REFERENCES reports (id) ON DELETE CASCADE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
   );
+
+  -- CREATE TABLE IF NOT EXISTS leaves an existing table untouched, so columns
+  -- added later need their own statement.
+  ALTER TABLE reports        ADD COLUMN IF NOT EXISTS house_number TEXT;
+  ALTER TABLE location_cache ADD COLUMN IF NOT EXISTS house_number TEXT;
+  ALTER TABLE location_cache ADD COLUMN IF NOT EXISTS source_lat   DOUBLE PRECISION;
+  ALTER TABLE location_cache ADD COLUMN IF NOT EXISTS source_lon   DOUBLE PRECISION;
 `;
 
 /** Runs once per process; later calls await the same promise. */
@@ -194,6 +205,7 @@ function toReport(row: Row): Report {
     latitude: numberOrNull(row.latitude),
     longitude: numberOrNull(row.longitude),
     street: (row.street as string) ?? null,
+    houseNumber: (row.house_number as string) ?? null,
     district: (row.district as string) ?? null,
     postalCode: (row.postal_code as string) ?? null,
     city: (row.city as string) ?? null,
@@ -220,7 +232,7 @@ function hoursAgo(hours: number): Date {
 
 const REPORT_COLUMNS = `
   id, public_id, reported_at, severity, latitude, longitude,
-  street, district, postal_code, city, odor_type, duration, comment,
+  street, house_number, district, postal_code, city, odor_type, duration, comment,
   source, status, weather_status,
   wind_direction_deg, wind_speed_kmh, wind_gust_kmh,
   temperature_c, precipitation_mm, pressure_hpa, humidity_pct, weather_fetched_at
@@ -303,11 +315,19 @@ export async function attachLocation(id: number, location: LocationInfo | null):
   await query(
     `UPDATE reports SET
        street = COALESCE($2, street),
-       district = COALESCE($3, district),
-       postal_code = COALESCE($4, postal_code),
-       city = COALESCE($5, city)
+       house_number = COALESCE($3, house_number),
+       district = COALESCE($4, district),
+       postal_code = COALESCE($5, postal_code),
+       city = COALESCE($6, city)
      WHERE id = $1`,
-    [id, location.street, location.district, location.postalCode, location.city],
+    [
+      id,
+      location.street,
+      location.houseNumber,
+      location.district,
+      location.postalCode,
+      location.city,
+    ],
   );
 }
 
@@ -323,31 +343,76 @@ export async function deleteReport(id: number): Promise<void> {
 /* Location cache                                                      */
 /* ------------------------------------------------------------------ */
 
-export async function cachedLocation(cell: string): Promise<LocationInfo | null> {
+/**
+ * A cache cell spans roughly eleven metres, which is fine for a street but can
+ * straddle two buildings. Reusing a cached house number beyond this distance
+ * would put a report on the neighbour's doorstep, so it is dropped instead.
+ */
+const HOUSE_NUMBER_REUSE_METRES = 8;
+
+function metresApart(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const latMetres = (lat1 - lat2) * 111_320;
+  const lonMetres = (lon1 - lon2) * 111_320 * Math.cos((lat1 * Math.PI) / 180);
+  return Math.hypot(latMetres, lonMetres);
+}
+
+export async function cachedLocation(
+  cell: string,
+  latitude: number,
+  longitude: number,
+): Promise<LocationInfo | null> {
   const result = await query<Row>(
-    `SELECT street, district, postal_code, city FROM location_cache WHERE cell = $1`,
+    `SELECT street, house_number, district, postal_code, city, source_lat, source_lon
+       FROM location_cache WHERE cell = $1`,
     [cell],
   );
   const row = result.rows[0];
   if (!row) return null;
+
+  const sourceLat = numberOrNull(row.source_lat);
+  const sourceLon = numberOrNull(row.source_lon);
+  const sameSpot =
+    sourceLat !== null &&
+    sourceLon !== null &&
+    metresApart(latitude, longitude, sourceLat, sourceLon) <= HOUSE_NUMBER_REUSE_METRES;
+
   return {
     street: (row.street as string) ?? null,
+    houseNumber: sameSpot ? ((row.house_number as string) ?? null) : null,
     district: (row.district as string) ?? null,
     postalCode: (row.postal_code as string) ?? null,
     city: (row.city as string) ?? null,
   };
 }
 
-export async function cacheLocation(cell: string, location: LocationInfo): Promise<void> {
+export async function cacheLocation(
+  cell: string,
+  location: LocationInfo,
+  latitude: number,
+  longitude: number,
+): Promise<void> {
   await query(
-    `INSERT INTO location_cache (cell, street, district, postal_code, city)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO location_cache
+       (cell, street, house_number, district, postal_code, city, source_lat, source_lon)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (cell) DO UPDATE SET
        street = EXCLUDED.street,
+       house_number = EXCLUDED.house_number,
        district = EXCLUDED.district,
        postal_code = EXCLUDED.postal_code,
-       city = EXCLUDED.city`,
-    [cell, location.street, location.district, location.postalCode, location.city],
+       city = EXCLUDED.city,
+       source_lat = EXCLUDED.source_lat,
+       source_lon = EXCLUDED.source_lon`,
+    [
+      cell,
+      location.street,
+      location.houseNumber,
+      location.district,
+      location.postalCode,
+      location.city,
+      latitude,
+      longitude,
+    ],
   );
 }
 

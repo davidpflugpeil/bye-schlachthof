@@ -82,14 +82,21 @@ function cityFrom(address: NominatimAddress | undefined): string | null {
 }
 
 /**
- * Resolves street, district, postal code and city for a coordinate.
- * The house number is deliberately dropped — it is neither stored nor shown.
+ * Resolves street, house number, district, postal code and city for a
+ * coordinate. Everything but the house number is published; that one is kept
+ * for the admin area only.
  */
 export async function resolveLocation(lat: number, lon: number): Promise<LocationInfo> {
-  const empty: LocationInfo = { street: null, district: null, postalCode: null, city: null };
+  const empty: LocationInfo = {
+    street: null,
+    houseNumber: null,
+    district: null,
+    postalCode: null,
+    city: null,
+  };
 
   const key = locationCacheKey(lat, lon);
-  const cached = await cachedLocation(key);
+  const cached = await cachedLocation(key, lat, lon);
   if (cached) return cached;
 
   try {
@@ -109,12 +116,15 @@ export async function resolveLocation(lat: number, lon: number): Promise<Locatio
     const data = (await response.json()) as { address?: NominatimAddress };
     const location: LocationInfo = {
       street: streetFrom(data.address),
+      houseNumber: data.address?.house_number ?? null,
       district: districtFrom(data.address),
       postalCode: data.address?.postcode ?? null,
       city: cityFrom(data.address),
     };
 
-    if (location.street || location.district) await cacheLocation(key, location);
+    if (location.street || location.district) {
+      await cacheLocation(key, location, lat, lon);
+    }
     return location;
   } catch {
     return empty;

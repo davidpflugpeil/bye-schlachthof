@@ -113,7 +113,9 @@ export function ReportList({ reports }: { reports: Report[] }) {
                     )}
                   </td>
                   <td className="px-4 py-3 align-top">
-                    <span className="block text-ink">{report.street ?? "–"}</span>
+                    <span className="block text-ink">
+                      {[report.street, report.houseNumber].filter(Boolean).join(" ") || "–"}
+                    </span>
                     <span className="block text-sm text-ink-soft">
                       {[report.postalCode, report.district].filter(Boolean).join(" ") || "–"}
                     </span>
@@ -198,8 +200,12 @@ export function ReportList({ reports }: { reports: Report[] }) {
                     {formatDate(report.reportedAt)} · {formatTime(report.reportedAt)}
                   </p>
                   <p className="mt-0.5 text-sm text-ink-soft">
-                    {[report.street, report.district].filter(Boolean).join(" · ") ||
-                      "Ort unbekannt"}
+                    {[
+                      [report.street, report.houseNumber].filter(Boolean).join(" "),
+                      report.district,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "Ort unbekannt"}
                   </p>
                   <p className="text-sm text-ink-soft">
                     {report.source === "shortcut" ? "Kurzbefehl" : "Website"}

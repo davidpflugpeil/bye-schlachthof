@@ -96,8 +96,8 @@ export default async function AboutPage() {
           <Section title="Was öffentlich sichtbar ist">
             <p>
               Öffentlich sichtbar sind Zeitpunkt, Stärke, die Straße und der Stadtteil sowie die
-              Wetterangaben. Die Hausnummer wird weder gespeichert noch angezeigt, ebenso wenig die
-              genauen Koordinaten.
+              Wetterangaben. Die Hausnummer und die genauen Koordinaten werden nie veröffentlicht –
+              sie bleiben im internen Verwaltungsbereich.
             </p>
             <p>
               Die Straße ist wichtig, weil sich Geruch entlang der Windrichtung ausbreitet. Erst

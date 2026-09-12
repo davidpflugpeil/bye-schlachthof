@@ -24,7 +24,10 @@ export default function PrivacyPage() {
               <li>Zeitpunkt der Meldung</li>
               <li>Gemeldete Stärke (1 bis 5)</li>
               <li>Koordinaten des angegebenen Ortes – nur intern, nicht öffentlich</li>
-              <li>Straße, Stadtteil, Postleitzahl und Ort – ohne Hausnummer</li>
+              <li>Straße, Stadtteil, Postleitzahl und Ort</li>
+              <li>
+                Die Hausnummer des angegebenen Ortes – nur intern, nicht öffentlich
+              </li>
               <li>Automatisch ergänzte Wetter- und Winddaten zu diesem Ort</li>
               <li>Freiwillige Angaben: Geruchsart, Dauer, Kommentar</li>
               <li>
@@ -37,8 +40,9 @@ export default function PrivacyPage() {
           <Section title="Was öffentlich sichtbar ist">
             <p>
               Öffentlich sichtbar sind Zeitpunkt, Stärke, die Straße, der Stadtteil und die
-              Wetterangaben. Die Hausnummer wird nicht gespeichert und nie angezeigt. Auch die
-              genauen Koordinaten verlassen den Verwaltungsbereich nicht.
+              Wetterangaben. Die Hausnummer wird gespeichert, aber nie veröffentlicht: Sie ist
+              ausschließlich im internen Verwaltungsbereich und im dortigen Export sichtbar, ebenso
+              wie die genauen Koordinaten.
             </p>
           </Section>
 

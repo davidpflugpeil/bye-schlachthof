@@ -23,9 +23,13 @@ export interface Weather {
   fetchedAt: string;
 }
 
-/** Location details without the house number — exactly what gets published. */
+/**
+ * Location details from the geocoder. Everything here except `houseNumber` is
+ * published; the house number stays inside the admin area and the export.
+ */
 export interface LocationInfo {
   street: string | null;
+  houseNumber: string | null;
   district: string | null;
   postalCode: string | null;
   city: string | null;
@@ -39,6 +43,8 @@ export interface Report {
   latitude: number | null;
   longitude: number | null;
   street: string | null;
+  /** Admin-only — never part of a public response. */
+  houseNumber: string | null;
   district: string | null;
   postalCode: string | null;
   city: string | null;
