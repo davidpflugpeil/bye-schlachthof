@@ -81,7 +81,7 @@ export async function GET(request: Request) {
   const limit = intParam(params, "limit", 20, 1, 200);
   const hours = intParam(params, "hours", 48, 1, 24 * 90);
 
-  const reports = recentReportsSince(hours, limit).map(toApiReport);
+  const reports = (await recentReportsSince(hours, limit)).map(toApiReport);
 
   return success(
     { windowHours: hours, count: reports.length, reports },

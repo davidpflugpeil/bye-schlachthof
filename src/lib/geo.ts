@@ -89,7 +89,7 @@ export async function resolveLocation(lat: number, lon: number): Promise<Locatio
   const empty: LocationInfo = { street: null, district: null, postalCode: null, city: null };
 
   const key = locationCacheKey(lat, lon);
-  const cached = cachedLocation(key);
+  const cached = await cachedLocation(key);
   if (cached) return cached;
 
   try {
@@ -114,7 +114,7 @@ export async function resolveLocation(lat: number, lon: number): Promise<Locatio
       city: cityFrom(data.address),
     };
 
-    if (location.street || location.district) cacheLocation(key, location);
+    if (location.street || location.district) await cacheLocation(key, location);
     return location;
   } catch {
     return empty;

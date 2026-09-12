@@ -62,17 +62,17 @@ fi
 
 echo
 echo "Writing — success cases"
-check "POST coordinates (JSON)"       201 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" -H 'Content-Type: application/json' -d '{"severity":2,"latitude":48.1258,"longitude":11.5528,"odorType":"rotten","duration":"short","comment":"Prüflauf der Schnittstelle"}')"
-check "POST form data"                201 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" -H 'Content-Type: application/x-www-form-urlencoded' -d 'severity=3&latitude=48.1273&longitude=11.5602')"
-check "POST address instead of coords" 201 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" -H 'Content-Type: application/json' -d '{"severity":2,"address":"Tumblingerstraße, München"}')"
+check "POST coordinates (JSON)"       201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -d '{"severity":2,"latitude":48.1258,"longitude":11.5528,"odorType":"rotten","duration":"short","comment":"Prüflauf der Schnittstelle"}')"
+check "POST form data"                201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/x-www-form-urlencoded' -d 'severity=3&latitude=48.1273&longitude=11.5602')"
+check "POST address instead of coords" 201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -d '{"severity":2,"address":"Tumblingerstraße, München"}')"
 
 KEY="check-$(date +%s)-$RANDOM"
-check "POST with Idempotency-Key"     201 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" -H 'Content-Type: application/json' -H "Idempotency-Key: $KEY" -d '{"severity":4,"latitude":48.1232,"longitude":11.5560}')"
-check "POST same key (no second row)" 200 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" -H 'Content-Type: application/json' -H "Idempotency-Key: $KEY" -d '{"severity":4,"latitude":48.1232,"longitude":11.5560}')"
+check "POST with Idempotency-Key"     201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -H "Idempotency-Key: $KEY" -d '{"severity":4,"latitude":48.1232,"longitude":11.5560}')"
+check "POST same key (no second row)" 200 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -H "Idempotency-Key: $KEY" -d '{"severity":4,"latitude":48.1232,"longitude":11.5560}')"
 
 echo
 echo "Sample response"
-curl -s -X POST "$API/reports" "${TOKEN_HEADER[@]}" -H 'Content-Type: application/json' \
+curl -s -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' \
   -d '{"severity":4,"latitude":48.1252,"longitude":11.5559}' |
   python3 -m json.tool 2>/dev/null | head -30
 

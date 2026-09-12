@@ -39,7 +39,7 @@ export async function GET() {
     return new Response("Nicht angemeldet.", { status: 401 });
   }
 
-  const reports = allReportsForAdmin(100_000);
+  const reports = await allReportsForAdmin(100_000);
 
   const lines = [
     COLUMNS.join(";"),

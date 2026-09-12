@@ -15,7 +15,7 @@ const schrift = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL?.trim() || "http://localhost:3000"),
   title: {
     default: `${PROJECT_NAME} – Geruchsbelastung gemeinsam dokumentieren`,
     template: `%s · ${PROJECT_NAME}`,

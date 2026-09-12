@@ -32,14 +32,14 @@ export async function signOut(): Promise<void> {
 
 export async function toggleVisibility(id: number, hide: boolean): Promise<void> {
   if (!(await isSignedIn())) return;
-  setReportStatus(id, hide ? "hidden" : "visible");
+  await setReportStatus(id, hide ? "hidden" : "visible");
   revalidatePath("/admin");
   revalidatePath("/");
 }
 
 export async function removeReport(id: number): Promise<void> {
   if (!(await isSignedIn())) return;
-  deleteReport(id);
+  await deleteReport(id);
   revalidatePath("/admin");
   revalidatePath("/");
 }

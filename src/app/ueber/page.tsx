@@ -15,9 +15,9 @@ export const metadata: Metadata = {
     "Warum wir Geruchsmeldungen sammeln, was gespeichert wird und was öffentlich sichtbar ist.",
 };
 
-export default function AboutPage() {
-  const total = totalReportCount();
-  const situation = currentSituation();
+export default async function AboutPage() {
+  const total = await totalReportCount();
+  const situation = await currentSituation();
 
   return (
     <div className="page-shell py-6 sm:py-10">

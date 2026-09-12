@@ -12,10 +12,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export const dynamic = "force-dynamic";
 
-export default function HomePage() {
-  const situation = currentSituation();
-  const latest = recentReports(8).map(toPublicReport);
-  const streets = streetStats(new Date(Date.now() - 7 * 86_400_000).toISOString(), 6);
+export default async function HomePage() {
+  const situation = await currentSituation();
+  const latest = (await recentReports(8)).map(toPublicReport);
+  const streets = await streetStats(new Date(Date.now() - 7 * 86_400_000).toISOString(), 6);
 
   return (
     <div className="page-shell py-5 sm:py-8 lg:py-10">

@@ -122,7 +122,7 @@ export async function submitReport(
 ): Promise<SubmitResult> {
   // Already processed? Return the same report instead of creating a second one.
   if (context.idempotencyKey) {
-    const known = reportForIdempotencyKey(context.idempotencyKey);
+    const known = await reportForIdempotencyKey(context.idempotencyKey);
     if (known) return { ok: true, report: known, duplicate: true };
   }
 
@@ -140,7 +140,7 @@ export async function submitReport(
 
   if (
     context.reporterHash &&
-    reportCountFromReporter(context.reporterHash, 60) >= context.maxPerHour
+    await reportCountFromReporter(context.reporterHash, 60) >= context.maxPerHour
   ) {
     return {
       ok: false,
@@ -152,7 +152,7 @@ export async function submitReport(
 
   let report: Report;
   try {
-    report = createReport({
+    report = await createReport({
       severity,
       reportedAt: readTimestamp(input.reportedAt),
       latitude: location.latitude,
@@ -173,7 +173,7 @@ export async function submitReport(
 
   if (context.idempotencyKey) {
     try {
-      rememberIdempotencyKey(context.idempotencyKey, report.id);
+      await rememberIdempotencyKey(context.idempotencyKey, report.id);
     } catch {
       /* Without the marker the report still works. */
     }
@@ -196,7 +196,7 @@ export async function submitReport(
     return { ok: true, report, duplicate: false };
   }
 
-  return { ok: true, report: reportById(report.id) ?? report, duplicate: false };
+  return { ok: true, report: await reportById(report.id) ?? report, duplicate: false };
 }
 
 type LocationResult =
@@ -244,8 +244,8 @@ async function enrich(id: number, lat: number, lon: number): Promise<true> {
   ]);
 
   try {
-    attachWeather(id, weather);
-    attachLocation(id, location);
+    await attachWeather(id, weather);
+    await attachLocation(id, location);
   } catch {
     /* Database briefly unavailable — the report itself is kept. */
   }

@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const limit = intParam(params, "limit", 6, 0, 50);
 
-  const situation = currentSituation();
+  const situation = await currentSituation();
   const assessment = assessSituation(situation);
 
   return success(
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
         headline: assessment.headline,
         detail: assessment.detail,
       },
-      latest: limit > 0 ? recentReports(limit).map(toApiReport) : [],
+      latest: limit > 0 ? (await recentReports(limit)).map(toApiReport) : [],
     },
     {
       request,

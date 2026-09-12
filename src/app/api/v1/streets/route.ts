@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const limit = intParam(params, "limit", 8, 1, 100);
 
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
-  const streets = streetStats(since, limit).map((entry) => ({
+  const streets = (await streetStats(since, limit)).map((entry) => ({
     street: entry.street,
     count: entry.count,
     averageSeverity: Number(entry.averageSeverity.toFixed(2)),

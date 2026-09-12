@@ -14,7 +14,7 @@ export async function GET() {
   const startedAt = Date.now();
 
   try {
-    const reports = totalReportCount();
+    const reports = await totalReportCount();
     return NextResponse.json(
       {
         ok: true,

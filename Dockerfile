@@ -1,12 +1,9 @@
 # syntax=docker/dockerfile:1
 
 # --- dependencies -----------------------------------------------------------
-# better-sqlite3 is a native module; the toolchain is only needed to build it.
+# Every dependency is pure JavaScript now, so no build toolchain is needed.
 FROM node:22-slim AS deps
 WORKDIR /app
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 make g++ ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 RUN npm ci
 
@@ -33,8 +30,7 @@ WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
-    HOSTNAME=0.0.0.0 \
-    DATABASE_PATH=/data/bye-schlachthof.db
+    HOSTNAME=0.0.0.0
 
 RUN groupadd --system --gid 1001 nodejs \
     && useradd --system --uid 1001 --gid nodejs nextjs
@@ -43,9 +39,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Mount point for the persistent volume that holds the SQLite file.
-RUN mkdir -p /data && chown nextjs:nodejs /data
-VOLUME ["/data"]
+# State lives in Postgres — DATABASE_URL is supplied at runtime.
 
 USER nextjs
 EXPOSE 3000

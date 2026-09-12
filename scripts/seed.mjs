@@ -1,53 +1,37 @@
 /**
  * Creates reproducible test data for development.
- * Usage: node scripts/seed.mjs [days]
+ * Usage: DATABASE_URL=postgresql://... node scripts/seed.mjs [days]
  */
-import Database from "better-sqlite3";
-import fs from "node:fs";
-import path from "node:path";
-import crypto from "node:crypto";
+import { randomBytes } from "node:crypto";
+import pg from "pg";
 
 const DAYS = Number(process.argv[2] ?? 14);
-const FILE =
-  process.env.DATABASE_PATH || path.join(process.cwd(), "data", "bye-schlachthof.db");
+const CONNECTION = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
-fs.mkdirSync(path.dirname(FILE), { recursive: true });
-const db = new Database(FILE);
-db.pragma("journal_mode = WAL");
+if (!CONNECTION) {
+  console.error("DATABASE_URL or POSTGRES_URL must be set.");
+  process.exit(1);
+}
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS reports (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    public_id TEXT NOT NULL UNIQUE,
-    reported_at TEXT NOT NULL,
-    severity INTEGER NOT NULL CHECK (severity BETWEEN 1 AND 5),
-    latitude REAL, longitude REAL,
-    street TEXT, district TEXT, postal_code TEXT, city TEXT,
-    odor_type TEXT, duration TEXT, comment TEXT,
-    source TEXT NOT NULL DEFAULT 'web',
-    reporter_hash TEXT,
-    status TEXT NOT NULL DEFAULT 'visible',
-    weather_status TEXT NOT NULL DEFAULT 'pending',
-    wind_direction_deg REAL, wind_speed_kmh REAL, wind_gust_kmh REAL,
-    temperature_c REAL, precipitation_mm REAL, pressure_hpa REAL, humidity_pct REAL,
-    weather_fetched_at TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_reports_time ON reports (reported_at DESC);
-  CREATE INDEX IF NOT EXISTS idx_reports_status ON reports (status, reported_at DESC);
-  CREATE INDEX IF NOT EXISTS idx_reports_reporter ON reports (reporter_hash, reported_at DESC);
-  CREATE TABLE IF NOT EXISTS location_cache (
-    cell TEXT PRIMARY KEY, street TEXT, district TEXT, postal_code TEXT, city TEXT,
-    created_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS idempotency_keys (
-    key TEXT PRIMARY KEY, report_id INTEGER NOT NULL, created_at TEXT NOT NULL
-  );
-`);
+function detectTls(url) {
+  if (/sslmode=(disable|allow)/.test(url)) return false;
+  if (/sslmode=(require|verify-ca|verify-full)/.test(url)) return true;
+  try {
+    return !["localhost", "127.0.0.1", "::1", ""].includes(new URL(url).hostname);
+  } catch {
+    return true;
+  }
+}
+const needsTls = detectTls(CONNECTION);
+
+const pool = new pg.Pool({
+  connectionString: CONNECTION,
+  ssl: needsTls ? { rejectUnauthorized: false } : undefined,
+});
 
 const ID_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
 const newId = () =>
-  [...crypto.randomBytes(12)].map((byte) => ID_ALPHABET[byte % ID_ALPHABET.length]).join("");
+  [...randomBytes(12)].map((byte) => ID_ALPHABET[byte % ID_ALPHABET.length]).join("");
 
 /**
  * Streets in and directly around the Schlachthofviertel.
@@ -71,17 +55,13 @@ const STREETS = [
   { street: "Isartalstraße", district: "Sendling", postalCode: "80469", lat: 48.1208, lon: 11.5512, weight: 3 },
 ];
 
-const WEIGHTED_STREETS = STREETS.flatMap((entry) =>
-  Array.from({ length: entry.weight }, () => entry),
-);
+const WEIGHTED = STREETS.flatMap((entry) => Array.from({ length: entry.weight }, () => entry));
 
 const ODOR_TYPES = ["rotten", "blood", "manure", "chemical", "other", null, null];
 const DURATIONS = ["short", "persistent", "recurring", null, null];
 /** German comments, as a real reporter would write them. */
 const COMMENTS = [
-  null,
-  null,
-  null,
+  null, null, null,
   "Besonders auffällig Richtung Innenhof.",
   "Fenster mussten geschlossen werden.",
   "Zieht seit etwa einer halben Stunde durch die Straße.",
@@ -90,89 +70,91 @@ const COMMENTS = [
 const between = (min, max) => min + Math.random() * (max - min);
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
-const insert = db.prepare(`
-  INSERT INTO reports (
-    public_id, reported_at, severity, latitude, longitude,
-    street, district, postal_code, city, odor_type, duration, comment,
-    source, reporter_hash, status, weather_status,
-    wind_direction_deg, wind_speed_kmh, wind_gust_kmh, temperature_c,
-    precipitation_mm, pressure_hpa, humidity_pct, weather_fetched_at
-  ) VALUES (
-    @publicId, @reportedAt, @severity, @latitude, @longitude,
-    @street, @district, @postalCode, 'München', @odorType, @duration, @comment,
-    @source, @reporterHash, 'visible', 'ok',
-    @windDirectionDeg, @windSpeedKmh, @windGustKmh, @temperatureC,
-    @precipitationMm, @pressureHpa, @humidityPct, @reportedAt
-  )
-`);
-
-let created = 0;
+const rows = [];
 const now = Date.now();
 
 function addReport(moment, dailyWind, rainyDay, intense) {
-  const place = pick(WEIGHTED_STREETS);
+  const place = pick(WEIGHTED);
   // Slight scatter along the street, with no link to a house number.
-  const latitude = place.lat + between(-0.0009, 0.0009);
-  const longitude = place.lon + between(-0.0013, 0.0013);
   const base = intense ? between(2.6, 5.4) : between(1.2, 4.2);
-
-  insert.run({
-    publicId: newId(),
-    reportedAt: moment.toISOString(),
-    severity: Math.min(5, Math.max(1, Math.round(base))),
-    latitude: Number(latitude.toFixed(6)),
-    longitude: Number(longitude.toFixed(6)),
-    street: place.street,
-    district: place.district,
-    postalCode: place.postalCode,
-    odorType: pick(ODOR_TYPES),
-    duration: pick(DURATIONS),
-    comment: pick(COMMENTS),
-    source: Math.random() < 0.25 ? "shortcut" : "web",
-    reporterHash: `test${Math.floor(between(0, 40))}`,
-    windDirectionDeg: Number((dailyWind + between(-25, 25)).toFixed(0)),
-    windSpeedKmh: Number(between(4, 24).toFixed(1)),
-    windGustKmh: Number(between(10, 42).toFixed(1)),
-    temperatureC: Number(between(6, 27).toFixed(1)),
-    precipitationMm: rainyDay ? Number(between(0, 3.2).toFixed(1)) : 0,
-    pressureHpa: Number(between(985, 1025).toFixed(1)),
-    humidityPct: Number(between(38, 92).toFixed(0)),
-  });
-  created += 1;
+  rows.push([
+    newId(),
+    moment.toISOString(),
+    Math.min(5, Math.max(1, Math.round(base))),
+    Number((place.lat + between(-0.0009, 0.0009)).toFixed(6)),
+    Number((place.lon + between(-0.0013, 0.0013)).toFixed(6)),
+    place.street,
+    place.district,
+    place.postalCode,
+    "München",
+    pick(ODOR_TYPES),
+    pick(DURATIONS),
+    pick(COMMENTS),
+    Math.random() < 0.25 ? "shortcut" : "web",
+    `test${Math.floor(between(0, 40))}`,
+    "ok",
+    Number((dailyWind + between(-25, 25)).toFixed(0)),
+    Number(between(4, 24).toFixed(1)),
+    Number(between(10, 42).toFixed(1)),
+    Number(between(6, 27).toFixed(1)),
+    rainyDay ? Number(between(0, 3.2).toFixed(1)) : 0,
+    Number(between(985, 1025).toFixed(1)),
+    Number(between(38, 92).toFixed(0)),
+    moment.toISOString(),
+  ]);
 }
 
-const seedAll = db.transaction(() => {
-  for (let day = DAYS - 1; day >= 0; day -= 1) {
-    // South-westerly wind dominates — that is when the smell drifts over the quarter.
-    const dailyWind = Math.random() < 0.6 ? between(200, 250) : between(0, 360);
-    const rainyDay = Math.random() < 0.25;
-    const intense = Math.random() < 0.3;
-    const amount = intense ? Math.round(between(9, 22)) : Math.round(between(0, 7));
+for (let day = DAYS - 1; day >= 0; day -= 1) {
+  // South-westerly wind dominates — that is when the smell drifts over the quarter.
+  const dailyWind = Math.random() < 0.6 ? between(200, 250) : between(0, 360);
+  const rainyDay = Math.random() < 0.25;
+  const intense = Math.random() < 0.3;
+  const amount = intense ? Math.round(between(9, 22)) : Math.round(between(0, 7));
 
-    for (let i = 0; i < amount; i += 1) {
-      // Clustered in the early evening, with a second peak in the early morning.
-      const hour = Math.random() < 0.55 ? Math.round(between(17, 22)) : Math.round(between(5, 16));
-      const moment = new Date(now - day * 86_400_000);
-      moment.setHours(hour, Math.floor(between(0, 60)), Math.floor(between(0, 60)), 0);
-      if (moment.getTime() > now) continue;
-      addReport(moment, dailyWind, rainyDay, intense);
-    }
+  for (let i = 0; i < amount; i += 1) {
+    // Clustered in the early evening, with a second peak in the early morning.
+    const hour = Math.random() < 0.55 ? Math.round(between(17, 22)) : Math.round(between(5, 16));
+    const moment = new Date(now - day * 86_400_000);
+    moment.setHours(hour, Math.floor(between(0, 60)), Math.floor(between(0, 60)), 0);
+    if (moment.getTime() > now) continue;
+    addReport(moment, dailyWind, rainyDay, intense);
   }
-});
-
-seedAll();
+}
 
 // Make sure the last couple of hours are not empty.
-const recent = db
-  .prepare(`SELECT COUNT(*) AS n FROM reports WHERE reported_at >= ?`)
-  .get(new Date(now - 2 * 3_600_000).toISOString()).n;
-
-if (recent === 0) {
+if (!rows.some((row) => Date.parse(row[1]) >= now - 2 * 3_600_000)) {
   for (let i = 0; i < 4; i += 1) {
     addReport(new Date(now - between(5, 105) * 60_000), 228, false, true);
   }
 }
 
-const total = db.prepare(`SELECT COUNT(*) AS n FROM reports`).get().n;
-console.log(`${created} test reports created. The database now holds ${total} reports.`);
-console.log(`File: ${FILE}`);
+const COLUMNS = [
+  "public_id", "reported_at", "severity", "latitude", "longitude",
+  "street", "district", "postal_code", "city", "odor_type", "duration", "comment",
+  "source", "reporter_hash", "weather_status",
+  "wind_direction_deg", "wind_speed_kmh", "wind_gust_kmh", "temperature_c",
+  "precipitation_mm", "pressure_hpa", "humidity_pct", "weather_fetched_at",
+];
+
+const client = await pool.connect();
+try {
+  await client.query("BEGIN");
+  for (const row of rows) {
+    const placeholders = row.map((_, index) => `$${index + 1}`).join(", ");
+    await client.query(
+      `INSERT INTO reports (${COLUMNS.join(", ")}) VALUES (${placeholders})
+       ON CONFLICT (public_id) DO NOTHING`,
+      row,
+    );
+  }
+  await client.query("COMMIT");
+} catch (error) {
+  await client.query("ROLLBACK");
+  throw error;
+} finally {
+  client.release();
+}
+
+const { rows: [{ count }] } = await pool.query("SELECT COUNT(*) AS count FROM reports");
+console.log(`${rows.length} test reports created. The database now holds ${count} reports.`);
+await pool.end();

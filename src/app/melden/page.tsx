@@ -16,8 +16,8 @@ export const metadata: Metadata = {
     "Halte in wenigen Sekunden fest, wie stark es gerade riecht. Anonym und ohne Registrierung.",
 };
 
-export default function ReportPage() {
-  const situation = currentSituation();
+export default async function ReportPage() {
+  const situation = await currentSituation();
   const assessment = assessSituation(situation);
 
   return (
