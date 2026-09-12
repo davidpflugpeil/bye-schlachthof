@@ -175,6 +175,13 @@ export default function ShortcutPage() {
               <code className="text-ink">longitude</code> oder{" "}
               <code className="text-ink">address</code>.
             </p>
+            <p>
+              Die Schreibweise ist großzügig: <code className="text-ink">lat</code>,{" "}
+              <code className="text-ink">lon</code> und Großbuchstaben gehen ebenso, ein
+              Dezimalkomma auch. Wer nur einen Wert übergeben kann, nimmt{" "}
+              <code className="text-ink">location</code> – darin passt{" "}
+              <code className="text-ink">48.1258, 11.5528</code> genauso wie eine Adresse.
+            </p>
           </div>
         </details>
       </section>

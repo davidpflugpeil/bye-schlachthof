@@ -4,6 +4,10 @@
 #   ./scripts/check-api.sh [base-url] [report-token]
 #
 # Example: ./scripts/check-api.sh https://example.org secret
+#
+# The write tests store twelve reports and therefore need the hourly limit's
+# full headroom. A second run within the same hour from the same address gets
+# 429 back and reports failures that are not defects.
 set -uo pipefail
 
 BASE="${1:-http://localhost:3000}"
@@ -57,7 +61,8 @@ check "POST without location"         400 "$(status -X POST "$API/reports" -H 'C
 check "POST unknown address"          422 "$(status -X POST "$API/reports" -H 'Content-Type: application/json' -d '{"severity":3,"address":"Qxzyv Nichtstrasse 999"}')"
 check "POST unreadable body"          400 "$(status -X POST "$API/reports" -H 'Content-Type: application/json' -d '{broken')"
 if [ -n "$TOKEN" ]; then
-  check "POST wrong token"            401 "$(status -X POST "$API/reports" -H 'Content-Type: application/json' -H 'X-Report-Token: wrong' -d '{"severity":3,"latitude":48.1258,"longitude":11.5528}')"
+  # A wrong token must not cost the report — it only forfeits the raised limit.
+  check "POST wrong token still stores" 201 "$(status -X POST "$API/reports" -H 'Content-Type: application/json' -H 'X-Report-Token: wrong' -d '{"severity":3,"latitude":48.1258,"longitude":11.5528}')"
 fi
 
 echo
@@ -65,6 +70,14 @@ echo "Writing — success cases"
 check "POST coordinates (JSON)"       201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -d '{"severity":2,"latitude":48.1258,"longitude":11.5528,"odorType":"rotten","duration":"short","comment":"Prüflauf der Schnittstelle"}')"
 check "POST form data"                201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/x-www-form-urlencoded' -d 'severity=3&latitude=48.1273&longitude=11.5602')"
 check "POST address instead of coords" 201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -d '{"severity":2,"address":"Tumblingerstraße, München"}')"
+
+# Field shapes a hand-built shortcut produces. Each of these used to be
+# rejected with location_missing.
+check "POST lat/lon short names"      201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -d '{"severity":2,"lat":48.1258,"lon":11.5528}')"
+check "POST capitalised keys"         201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -d '{"Intensity":3,"Latitude":"48.1258","Longitude":"11.5528"}')"
+check "POST location as one string"   201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -d '{"severity":2,"location":"48.1258, 11.5528"}')"
+check "POST nested location object"   201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -d '{"severity":2,"location":{"latitude":48.1258,"longitude":11.5528}}')"
+check "POST decimal comma"            201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -d '{"severity":2,"latitude":"48,1258","longitude":"11,5528"}')"
 
 KEY="check-$(date +%s)-$RANDOM"
 check "POST with Idempotency-Key"     201 "$(status -X POST "$API/reports" ${TOKEN_HEADER[@]+"${TOKEN_HEADER[@]}"} -H 'Content-Type: application/json' -H "Idempotency-Key: $KEY" -d '{"severity":4,"latitude":48.1232,"longitude":11.5560}')"

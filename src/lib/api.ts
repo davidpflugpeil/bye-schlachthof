@@ -144,8 +144,9 @@ export type TokenCheck = "none" | "valid" | "invalid";
 /**
  * Writing works without authentication on purpose — the project collects
  * anonymously. A configured `REPORT_TOKEN` marks trusted clients (the
- * shortcut) and raises their hourly limit. A supplied but wrong token is
- * rejected.
+ * shortcut) and raises their hourly limit. A wrong token is reported back to
+ * the caller but never rejects the report; it grants nothing that omitting the
+ * header would not also grant.
  */
 export function checkToken(request: Request): TokenCheck {
   const expected = process.env.REPORT_TOKEN?.trim();
@@ -164,6 +165,62 @@ export function checkToken(request: Request): TokenCheck {
 /* ------------------------------------------------------------------ */
 
 /**
+ * Field names a hand-built client is likely to produce, mapped onto the
+ * canonical ones. Shortcuts users type the keys themselves, so a body arrives
+ * with `Lat`, `lon` or `intensity` about as often as with the documented name.
+ */
+const FIELD_ALIASES: Record<string, string> = {
+  severity: "severity",
+  intensity: "severity",
+  strength: "severity",
+  level: "severity",
+  latitude: "latitude",
+  lat: "latitude",
+  longitude: "longitude",
+  lon: "longitude",
+  lng: "longitude",
+  long: "longitude",
+  address: "address",
+  location: "location",
+  coordinates: "location",
+  coords: "location",
+  odortype: "odorType",
+  odor: "odorType",
+  smell: "odorType",
+  duration: "duration",
+  comment: "comment",
+  note: "comment",
+  reportedat: "reportedAt",
+  timestamp: "reportedAt",
+  date: "reportedAt",
+  idempotencykey: "idempotencyKey",
+  idempotency: "idempotencyKey",
+};
+
+/**
+ * Maps the incoming keys onto the canonical ones, ignoring case, underscores,
+ * hyphens and spaces. An unknown key is passed through unchanged so nothing is
+ * silently swallowed. A canonical value already present wins over an alias.
+ */
+export function normalizeFields(body: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(body)) {
+    const simplified = key.trim().toLowerCase().replace(/[\s_-]/g, "");
+    const canonical = FIELD_ALIASES[simplified] ?? key;
+    const isAlias = canonical !== key;
+
+    // A body carrying both `latitude` and `lat` keeps the documented field.
+    if (isAlias && result[canonical] !== undefined) continue;
+    if (isAlias && body[canonical] !== undefined) continue;
+
+    result[canonical] = value;
+  }
+
+  return result;
+}
+
+/**
  * Reads JSON, form data or a raw body. Shortcuts occasionally send JSON
  * without a matching `Content-Type` header.
  */
@@ -172,20 +229,22 @@ export async function readBody(request: Request): Promise<Record<string, unknown
 
   try {
     if (type.includes("application/json")) {
-      return (await request.json()) as Record<string, unknown>;
+      return normalizeFields((await request.json()) as Record<string, unknown>);
     }
 
     if (type.includes("form")) {
       const form = await request.formData();
-      return Object.fromEntries(form.entries());
+      return normalizeFields(Object.fromEntries(form.entries()));
     }
 
     const text = (await request.text()).trim();
     if (!text) return {};
-    if (text.startsWith("{")) return JSON.parse(text) as Record<string, unknown>;
+    if (text.startsWith("{")) {
+      return normalizeFields(JSON.parse(text) as Record<string, unknown>);
+    }
 
     // Last resort: treat it as a query string (severity=4&latitude=…)
-    return Object.fromEntries(new URLSearchParams(text).entries());
+    return normalizeFields(Object.fromEntries(new URLSearchParams(text).entries()));
   } catch {
     return null;
   }

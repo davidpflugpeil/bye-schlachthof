@@ -33,6 +33,11 @@ export interface SubmitInput {
   longitude?: unknown;
   /** Alternative to coordinates — resolved server-side. */
   address?: unknown;
+  /**
+   * Catch-all for clients that hand over one location value: a `"48.12, 11.55"`
+   * string, a nested `{ latitude, longitude }` object, or plain address text.
+   */
+  location?: unknown;
   odorType?: unknown;
   duration?: unknown;
   comment?: unknown;
@@ -97,6 +102,40 @@ function readCoordinate(value: unknown): number | null {
     const parsed = Number.parseFloat(value.trim().replace(",", "."));
     if (Number.isFinite(parsed)) return parsed;
   }
+  return null;
+}
+
+/**
+ * Pulls coordinates out of a single value. Shortcuts renders its location
+ * variable as `"48.1258, 11.5528"`, and a hand-built body often nests them in
+ * an object instead of flattening them.
+ */
+function readPair(value: unknown): { latitude: number; longitude: number } | null {
+  if (typeof value === "string") {
+    const parts = value.split(/[;,\s]+/).filter(Boolean);
+    if (parts.length === 2) {
+      // A German-formatted "48,1258 11,5528" splits into four parts instead of
+      // two, so only an unambiguous pair is read here.
+      const latitude = readCoordinate(parts[0]);
+      const longitude = readCoordinate(parts[1]);
+      if (isValidCoordinate(latitude, longitude)) {
+        return { latitude: latitude!, longitude: longitude! };
+      }
+    }
+    return null;
+  }
+
+  if (value && typeof value === "object") {
+    const nested = value as Record<string, unknown>;
+    const latitude = readCoordinate(nested.latitude ?? nested.lat ?? nested.Latitude);
+    const longitude = readCoordinate(
+      nested.longitude ?? nested.lon ?? nested.lng ?? nested.Longitude,
+    );
+    if (isValidCoordinate(latitude, longitude)) {
+      return { latitude: latitude!, longitude: longitude! };
+    }
+  }
+
   return null;
 }
 
@@ -234,7 +273,13 @@ async function resolveInputLocation(input: SubmitInput): Promise<LocationResult>
     return { ok: true, latitude: latitude!, longitude: longitude! };
   }
 
-  const address = typeof input.address === "string" ? input.address.trim() : "";
+  const pair = readPair(input.location);
+  if (pair) return { ok: true, ...pair };
+
+  // `location` doubles as free text when it does not hold a coordinate pair.
+  const fallback = typeof input.location === "string" ? input.location.trim() : "";
+  const address =
+    (typeof input.address === "string" ? input.address.trim() : "") || fallback;
   if (address.length >= 3) {
     const matches = await searchAddress(address);
     if (matches.length === 0) {

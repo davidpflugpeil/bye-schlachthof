@@ -121,6 +121,12 @@ export async function GET(request: Request) {
                         "Alternative to coordinates, resolved server-side. Handy for shortcuts with a fixed address.",
                       example: "Zenettistraße 12, München",
                     },
+                    location: {
+                      description:
+                        "One-field alternative: a \"48.1258, 11.5528\" string, a nested object with latitude and longitude, or plain address text.",
+                      oneOf: [{ type: "string" }, { type: "object" }],
+                      example: "48.1258, 11.5528",
+                    },
                     odorType: { type: "string", enum: ODOR_TYPES.map((o) => o.value) },
                     duration: { type: "string", enum: DURATIONS.map((d) => d.value) },
                     comment: { type: "string", maxLength: COMMENT_MAX_LENGTH },
@@ -172,7 +178,6 @@ export async function GET(request: Request) {
               description: "Input incomplete",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
-            "401": { description: "Token invalid" },
             "422": { description: "Address could not be resolved" },
             "429": { description: "Too many reports within the last hour" },
           },

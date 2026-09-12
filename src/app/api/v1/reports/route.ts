@@ -31,14 +31,12 @@ export async function OPTIONS(request: Request) {
 export async function POST(request: Request) {
   const options = { request, access: "write" as const };
 
+  // The token is not a gate — writing is open on purpose and the token only
+  // raises the hourly limit. Rejecting a wrong one would drop a real report
+  // over a value that grants nothing, so it degrades to an untrusted write and
+  // says so in the response instead.
   const token = checkToken(request);
-  if (token === "invalid") {
-    return failure(
-      "unauthorized",
-      "Das mitgeschickte Token ist nicht gültig. Bitte richte den Kurzbefehl neu ein.",
-      options,
-    );
-  }
+  const trusted = token === "valid";
 
   const body = await readBody(request);
   if (!body) {
@@ -55,9 +53,9 @@ export async function POST(request: Request) {
     null;
 
   const result = await submitReport(body, {
-    source: token === "valid" ? "shortcut" : "web",
+    source: trusted ? "shortcut" : "web",
     reporterHash: reporterHash(request),
-    maxPerHour: token === "valid" ? REPORTS_PER_HOUR_WITH_TOKEN : REPORTS_PER_HOUR,
+    maxPerHour: trusted ? REPORTS_PER_HOUR_WITH_TOKEN : REPORTS_PER_HOUR,
     idempotencyKey,
   });
 
@@ -65,10 +63,20 @@ export async function POST(request: Request) {
     return failure(result.code, result.message, options);
   }
 
+  // Carried in `message` on purpose: a shortcut usually shows only that field,
+  // so a silently ignored token would otherwise never surface.
+  const warning =
+    token === "invalid"
+      ? "Hinweis: Das mitgeschickte Token stimmt nicht und wurde ignoriert."
+      : null;
+
   return success(
     {
-      message: reportMessage(result.report, result.duplicate),
+      message: [reportMessage(result.report, result.duplicate), warning]
+        .filter(Boolean)
+        .join(" — "),
       duplicate: result.duplicate,
+      tokenAccepted: token === "none" ? null : trusted,
       report: toApiReport(result.report),
     },
     { ...options, status: result.duplicate ? 200 : 201 },
