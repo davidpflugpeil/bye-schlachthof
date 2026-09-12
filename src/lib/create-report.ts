@@ -15,7 +15,9 @@ import {
   reportForIdempotencyKey,
 } from "./db";
 import { clientIp } from "./client-ip";
+import { isEstablished } from "./clients";
 import { isInArea, isValidCoordinate, resolveLocation, searchAddress } from "./geo";
+import { surgeState } from "./surge";
 import { fetchWeather } from "./weather";
 import { DURATIONS, ODOR_TYPES } from "./format";
 import type {
@@ -24,6 +26,7 @@ import type {
   Report,
   ReportingClient,
   ReportSource,
+  ReportStatus,
   Severity,
 } from "./types";
 import type { ErrorCode } from "./api";
@@ -176,6 +179,14 @@ export async function submitReport(
   const location = await resolveInputLocation(input);
   if (!location.ok) return location;
 
+  // While a flood is running, only senders with a history keep publishing
+  // directly. Everything else is stored and waits for a look — the report is
+  // not lost, it is just held back from the public figures.
+  const status: ReportStatus =
+    surgeState().active && !(context.client && isEstablished(context.client))
+      ? "pending"
+      : "visible";
+
   let report: Report;
   try {
     report = createReport({
@@ -189,6 +200,7 @@ export async function submitReport(
       source: context.source,
       reporterHash: context.reporterHash,
       clientId: context.client?.id ?? null,
+      status,
     });
   } catch {
     return {

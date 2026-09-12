@@ -15,9 +15,20 @@ import {
   severityLabel,
   windLabel,
 } from "@/lib/format";
-import type { Report } from "@/lib/types";
+import type { Report, ReportStatus } from "@/lib/types";
 import { Button, IconButton } from "@/components/ui/button";
 import { Modal } from "@/components/ui/sheet";
+
+/** Anything not on the site says why: hidden by hand, or held by the brake. */
+function StatusBadge({ status }: { status: ReportStatus }) {
+  return (
+    <span
+      className={cn("text-sm font-semibold", status === "pending" ? "text-warn" : "text-danger")}
+    >
+      {status === "pending" ? "in Prüfung" : "verborgen"}
+    </span>
+  );
+}
 
 export function ReportList({ reports }: { reports: Report[] }) {
   const [pending, startTransition] = React.useTransition();
@@ -81,9 +92,9 @@ export function ReportList({ reports }: { reports: Report[] }) {
           <tbody className="divide-y divide-line">
             {reports.map((report) => {
               const colors = severityColors(report.severity);
-              const hidden = report.status === "hidden";
+              const published = report.status === "visible";
               return (
-                <tr key={report.id} className={cn(hidden && "bg-surface-sunken/60")}>
+                <tr key={report.id} className={cn(!published && "bg-surface-sunken/60")}>
                   <td className="px-4 py-3 align-top">
                     <span className="block font-medium text-ink tabular-nums">
                       {formatTime(report.reportedAt)}
@@ -135,19 +146,21 @@ export function ReportList({ reports }: { reports: Report[] }) {
                     <span className="rounded-full bg-surface-sunken px-2.5 py-1 text-sm text-ink-soft">
                       {report.source === "shortcut" ? "Kurzbefehl" : "Website"}
                     </span>
-                    {hidden && (
-                      <span className="mt-1 block text-sm font-semibold text-danger">verborgen</span>
+                    {!published && (
+                      <span className="mt-1 block">
+                        <StatusBadge status={report.status} />
+                      </span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right align-top">
                     <span className="inline-flex gap-1.5">
                       <IconButton
-                        label={hidden ? "Wieder anzeigen" : "Verbergen"}
+                        label={published ? "Verbergen" : "Veröffentlichen"}
                         variant="ghost"
                         size="sm"
                         onClick={() => toggle(report)}
                       >
-                        {hidden ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                        {published ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                       </IconButton>
                       <IconButton
                         label="Löschen"
@@ -170,13 +183,13 @@ export function ReportList({ reports }: { reports: Report[] }) {
       <div className={cn("space-y-2.5 md:hidden", pending && "opacity-70")}>
         {reports.map((report) => {
           const colors = severityColors(report.severity);
-          const hidden = report.status === "hidden";
+          const published = report.status === "visible";
           return (
             <div
               key={report.id}
               className={cn(
                 "rounded-lg border border-line bg-surface p-4 shadow-soft",
-                hidden && "bg-surface-sunken/70",
+                !published && "bg-surface-sunken/70",
               )}
             >
               <div className="flex items-start justify-between gap-3">
@@ -204,16 +217,20 @@ export function ReportList({ reports }: { reports: Report[] }) {
                   <p className="text-sm text-ink-soft">
                     {report.source === "shortcut" ? "Kurzbefehl" : "Website"}
                   </p>
-                  {hidden && <p className="mt-1 text-sm font-semibold text-danger">verborgen</p>}
+                  {!published && (
+                    <p className="mt-1">
+                      <StatusBadge status={report.status} />
+                    </p>
+                  )}
                 </div>
                 <span className="flex shrink-0 gap-1.5">
                   <IconButton
-                    label={hidden ? "Wieder anzeigen" : "Verbergen"}
+                    label={published ? "Verbergen" : "Veröffentlichen"}
                     variant="ghost"
                     size="sm"
                     onClick={() => toggle(report)}
                   >
-                    {hidden ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                    {published ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </IconButton>
                   <IconButton
                     label="Löschen"

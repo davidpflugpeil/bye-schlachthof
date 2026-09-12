@@ -8,7 +8,12 @@ export type Duration = "short" | "persistent" | "recurring";
 
 export type ReportSource = "web" | "shortcut";
 
-export type ReportStatus = "visible" | "hidden";
+/**
+ * `pending` is what the surge brake produces: the report is stored and
+ * counted, but stays out of the public numbers until somebody has looked at
+ * it. Only reached while an unusual number of reports is arriving.
+ */
+export type ReportStatus = "visible" | "hidden" | "pending";
 
 /** How a reporting client reaches the API. */
 export type ClientKind = "web" | "shortcut";

@@ -6,12 +6,17 @@ import { isSignedIn, adminEnabled } from "@/lib/admin-auth";
 import { signOut } from "./actions";
 import {
   allReportsForAdmin,
+  clientCount,
   currentSituation,
   hiddenReportCount,
+  listClients,
+  pendingReportCount,
   totalReportCount,
 } from "@/lib/db";
+import { surgeState } from "@/lib/surge";
 import { formatNumber } from "@/lib/format";
 import { LoginForm } from "@/components/admin/login-form";
+import { ClientList } from "@/components/admin/client-list";
 import { ReportList } from "@/components/admin/report-list";
 import { StatCard } from "@/components/ui/stat-card";
 import { Button, buttonClasses } from "@/components/ui/button";
@@ -50,6 +55,10 @@ export default async function AdminSeite() {
   const total = totalReportCount();
   const situation = currentSituation();
   const hiddenCount = hiddenReportCount();
+  const pendingCount = pendingReportCount();
+  const clients = listClients(100);
+  const devices = clientCount();
+  const surge = surgeState();
 
   return (
     <div className="page-shell py-6 sm:py-10">
@@ -77,15 +86,30 @@ export default async function AdminSeite() {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6">
         <StatCard label="Meldungen gesamt" value={total} />
         <StatCard label="Letzte 24 Stunden" value={situation.reports24h} />
         <StatCard
           label="Ø Stärke (24 Std.)"
           value={formatNumber(situation.averageSeverity24h, 1)}
         />
+        <StatCard label="In Prüfung" value={pendingCount} />
         <StatCard label="Verborgen" value={hiddenCount} />
+        <StatCard label="Geräte" value={devices} />
       </div>
+
+      {/* Only shown when it matters — otherwise the brake needs no attention. */}
+      {surge.active && (
+        <div className="mt-5 rounded-xl border border-sand bg-sand-soft p-4 sm:p-5">
+          <h2 className="text-base font-bold text-ink">Ungewöhnlich viele Meldungen</h2>
+          <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-soft">
+            In der letzten Stunde sind {surge.lastHour} Meldungen eingegangen; üblich sind{" "}
+            {formatNumber(surge.baseline, 1)} pro Stunde. Ab {surge.threshold} greift die Bremse:
+            Meldungen von Geräten ohne Vorgeschichte landen vorerst in der Prüfung statt direkt auf
+            der Seite.
+          </p>
+        </div>
+      )}
 
       <section aria-labelledby="liste" className="mt-8">
         <h2 id="liste" className="text-lg font-bold text-ink">
@@ -93,6 +117,19 @@ export default async function AdminSeite() {
         </h2>
         <div className="mt-3">
           <ReportList reports={reports} />
+        </div>
+      </section>
+
+      <section aria-labelledby="geraete" className="mt-10">
+        <h2 id="geraete" className="text-lg font-bold text-ink">
+          Freigeschaltete Geräte
+        </h2>
+        <p className="mt-1 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-soft">
+          Anonyme Token ohne Personenbezug. Ein gesperrtes Gerät kann nichts mehr melden — alle
+          anderen bleiben unberührt.
+        </p>
+        <div className="mt-3">
+          <ClientList clients={clients} />
         </div>
       </section>
     </div>

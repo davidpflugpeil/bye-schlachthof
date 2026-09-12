@@ -85,8 +85,17 @@ export function toApiReport(report: Report): ApiReport {
  */
 export function reportMessage(report: Report, duplicate = false): string {
   const wind = windLabel(report.windDirectionDeg, report.windSpeedKmh, "long");
+
+  // Held back by the surge brake: stored, but not yet part of the public
+  // figures. Saying so is fairer than letting the sender believe otherwise.
+  const opening = duplicate
+    ? "Meldung bereits gespeichert"
+    : report.status === "pending"
+      ? "Meldung gespeichert und in Prüfung"
+      : "Meldung gespeichert";
+
   const parts = [
-    `${duplicate ? "Meldung bereits gespeichert" : "Meldung gespeichert"}: ${report.severity} · ${severityLabel(report.severity)}`,
+    `${opening}: ${report.severity} · ${severityLabel(report.severity)}`,
     formatTime(report.reportedAt),
     report.street,
     wind ? `Wind ${wind}` : null,

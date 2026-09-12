@@ -436,6 +436,83 @@ export function hiddenReportCount(): number {
   return row.n;
 }
 
+export function pendingReportCount(): number {
+  const row = db()
+    .prepare(`SELECT COUNT(*) AS n FROM reports WHERE status = 'pending'`)
+    .get() as { n: number };
+  return row.n;
+}
+
+/**
+ * One entry per sender and hour.
+ *
+ * Public figures are built on this rather than on raw rows, so no single
+ * sender can move them however often they press the button. Pressing it ten
+ * times in an hour counts once, at the highest severity of the ten; ten
+ * neighbours count ten times. Senders without a check value cannot be told
+ * apart from each other and therefore each stand for themselves.
+ *
+ * Deliberately independent of the street: it is filled in asynchronously, and
+ * a burst arriving faster than the lookups would otherwise slip through while
+ * the rows still say nothing about where they came from.
+ */
+const DISTINCT_REPORTS = `
+  SELECT MAX(severity) AS severity, MAX(reported_at) AS reported_at
+  FROM reports
+  WHERE status = 'visible' AND reported_at >= @since
+  GROUP BY COALESCE(reporter_hash, public_id), strftime('%Y-%m-%dT%H', reported_at)
+`;
+
+/**
+ * The same idea for the street figures, where the street has to stay part of
+ * the key — one sender counts once per street and hour. Rows without a
+ * resolved street play no part in these figures anyway.
+ */
+const DISTINCT_BY_STREET = `
+  SELECT MAX(severity) AS severity, MAX(reported_at) AS reported_at, street
+  FROM reports
+  WHERE status = 'visible' AND reported_at >= @since AND street IS NOT NULL
+  GROUP BY COALESCE(reporter_hash, public_id), street, strftime('%Y-%m-%dT%H', reported_at)
+`;
+
+/** All reports in the window, whatever their status — feeds the surge brake. */
+export function reportCountSince(minutes: number): number {
+  const row = db()
+    .prepare(`SELECT COUNT(*) AS n FROM reports WHERE reported_at >= ?`)
+    .get(minutesAgo(minutes)) as { n: number };
+  return row.n;
+}
+
+/**
+ * Reports per clock hour over the given number of days, oldest first, with
+ * quiet hours included as zeros — otherwise the median would describe only
+ * the busy hours and the brake would sit far too high.
+ */
+export function hourlyReportCounts(days: number): number[] {
+  const since = hoursAgo(days * 24);
+
+  const rows = db()
+    .prepare(
+      `SELECT strftime('%Y-%m-%dT%H', reported_at) AS hour, COUNT(*) AS n
+       FROM reports
+       WHERE reported_at >= ?
+       GROUP BY hour`,
+    )
+    .all(since) as { hour: string; n: number }[];
+
+  const counts = new Map(rows.map((row) => [row.hour, row.n]));
+  const buckets: number[] = [];
+  const start = new Date(since);
+  start.setUTCMinutes(0, 0, 0);
+
+  for (let index = 0; index < days * 24; index++) {
+    const moment = new Date(start.getTime() + index * 3600_000);
+    buckets.push(counts.get(moment.toISOString().slice(0, 13)) ?? 0);
+  }
+
+  return buckets;
+}
+
 export function currentSituation(): Situation {
   const connection = db();
 
@@ -443,10 +520,9 @@ export function currentSituation(): Situation {
     connection
       .prepare(
         `SELECT COUNT(*) AS count, AVG(severity) AS average, MAX(severity) AS maximum
-         FROM reports
-         WHERE status = 'visible' AND reported_at >= ?`,
+         FROM (${DISTINCT_REPORTS})`,
       )
-      .get(hoursAgo(hours)) as {
+      .get({ since: hoursAgo(hours) }) as {
       count: number;
       average: number | null;
       maximum: number | null;
@@ -463,13 +539,12 @@ export function currentSituation(): Situation {
   const streets = connection
     .prepare(
       `SELECT street, COUNT(*) AS count
-       FROM reports
-       WHERE status = 'visible' AND reported_at >= ? AND street IS NOT NULL
+       FROM (${DISTINCT_BY_STREET})
        GROUP BY street
        ORDER BY count DESC
        LIMIT 5`,
     )
-    .all(hoursAgo(6)) as { street: string }[];
+    .all({ since: hoursAgo(6) }) as { street: string }[];
 
   // Most recent weather reading, at most three hours old.
   const weatherRow = connection
@@ -515,13 +590,12 @@ export function streetStats(sinceIso: string, limit = 8): StreetStat[] {
               COUNT(*) AS count,
               AVG(severity) AS average,
               MAX(reported_at) AS latest
-       FROM reports
-       WHERE status = 'visible' AND reported_at >= ? AND street IS NOT NULL
+       FROM (${DISTINCT_BY_STREET})
        GROUP BY street
        ORDER BY count DESC, latest DESC
-       LIMIT ?`,
+       LIMIT @limit`,
     )
-    .all(sinceIso, limit) as {
+    .all({ since: sinceIso, limit }) as {
     street: string;
     count: number;
     average: number;
