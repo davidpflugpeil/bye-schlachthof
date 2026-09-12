@@ -18,8 +18,11 @@ export type ErrorCode =
   | "severity_missing"
   | "location_missing"
   | "address_not_found"
+  | "location_out_of_area"
   | "too_many_reports"
   | "unauthorized"
+  | "token_revoked"
+  | "challenge_failed"
   | "not_found"
   | "save_failed";
 
@@ -28,8 +31,11 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   severity_missing: 400,
   location_missing: 400,
   address_not_found: 422,
+  location_out_of_area: 422,
   too_many_reports: 429,
   unauthorized: 401,
+  token_revoked: 403,
+  challenge_failed: 400,
   not_found: 404,
   save_failed: 500,
 };

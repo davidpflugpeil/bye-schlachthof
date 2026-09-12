@@ -12,7 +12,8 @@ import {
   reportCountFromReporter,
   reportForIdempotencyKey,
 } from "./db";
-import { isValidCoordinate, resolveLocation, searchAddress } from "./geo";
+import { clientIp } from "./client-ip";
+import { isInArea, isValidCoordinate, resolveLocation, searchAddress } from "./geo";
 import { fetchWeather } from "./weather";
 import { DURATIONS, ODOR_TYPES } from "./format";
 import type { Duration, OdorType, Report, ReportSource, Severity } from "./types";
@@ -52,11 +53,7 @@ export type SubmitResult =
   | { ok: false; code: ErrorCode; message: string };
 
 export function reporterHash(request: Request): string {
-  const headers = request.headers;
-  const ip =
-    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    headers.get("x-real-ip")?.trim() ||
-    "local";
+  const ip = clientIp(request) ?? "local";
   const salt = process.env.REPORTER_SALT ?? "bye-schlachthof-default-salt";
   return crypto.createHash("sha256").update(`${salt}:${ip}`).digest("hex").slice(0, 32);
 }
@@ -135,9 +132,9 @@ export async function submitReport(
     };
   }
 
-  const location = await resolveInputLocation(input);
-  if (!location.ok) return location;
-
+  // Checked before the location is resolved: an address costs an outbound
+  // Nominatim request, and a sender over their quota must not be able to
+  // trigger those — that is what gets the server blocked by OSM.
   if (
     context.reporterHash &&
     reportCountFromReporter(context.reporterHash, 60) >= context.maxPerHour
@@ -149,6 +146,9 @@ export async function submitReport(
         "Es wurden gerade sehr viele Meldungen von diesem Gerät gesendet. Bitte versuche es in einer Stunde noch einmal.",
     };
   }
+
+  const location = await resolveInputLocation(input);
+  if (!location.ok) return location;
 
   let report: Report;
   try {
@@ -213,7 +213,7 @@ async function resolveInputLocation(input: SubmitInput): Promise<LocationResult>
   const longitude = readCoordinate(input.longitude);
 
   if (isValidCoordinate(latitude, longitude)) {
-    return { ok: true, latitude: latitude!, longitude: longitude! };
+    return withinArea(latitude!, longitude!);
   }
 
   const address = typeof input.address === "string" ? input.address.trim() : "";
@@ -226,7 +226,7 @@ async function resolveInputLocation(input: SubmitInput): Promise<LocationResult>
         message: `Zur Adresse „${address}“ wurde kein Ort gefunden. Versuche es mit Straße und Ort.`,
       };
     }
-    return { ok: true, latitude: matches[0].latitude, longitude: matches[0].longitude };
+    return withinArea(matches[0].latitude, matches[0].longitude);
   }
 
   return {
@@ -235,6 +235,23 @@ async function resolveInputLocation(input: SubmitInput): Promise<LocationResult>
     message:
       "Für die Meldung fehlt noch der Ort. Schicke „latitude“ und „longitude“ oder das Feld „address“.",
   };
+}
+
+/**
+ * The project documents one neighbourhood. A report from outside the Munich
+ * frame is either a mistake or noise — and rejecting it makes flooding the
+ * database from anywhere in the world pointless.
+ */
+function withinArea(latitude: number, longitude: number): LocationResult {
+  if (!isInArea(latitude, longitude)) {
+    return {
+      ok: false,
+      code: "location_out_of_area",
+      message:
+        "Dieser Ort liegt außerhalb der Region München. Es werden nur Meldungen aus dem Umkreis erfasst.",
+    };
+  }
+  return { ok: true, latitude, longitude };
 }
 
 async function enrich(id: number, lat: number, lon: number): Promise<true> {
