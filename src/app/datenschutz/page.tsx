@@ -72,8 +72,10 @@ export default function PrivacyPage() {
 
           <Section title="Verantwortlich">
             <p>
-              Das Projekt wird ehrenamtlich aus der Nachbarschaft betrieben. Die vollständigen
-              Kontaktangaben trägst du hier vor der Veröffentlichung ein.
+              Verantwortlich im Sinne der Datenschutz-Grundverordnung ist David Pflugpeil,
+              Adlzreiterstraße 23b, 80337 München, david@pflugpeil.com. Das Projekt wird
+              ehrenamtlich aus der Nachbarschaft betrieben; die vollständige Anbieterkennzeichnung
+              steht im Impressum.
             </p>
           </Section>
         </div>

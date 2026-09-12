@@ -40,6 +40,14 @@ export function SiteFooter() {
                   Datenschutz
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/impressum"
+                  className="text-[0.9375rem] text-ink-soft transition-colors hover:text-ink"
+                >
+                  Impressum
+                </Link>
+              </li>
             </ul>
           </nav>
         </div>
