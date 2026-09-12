@@ -40,8 +40,14 @@ The app then runs on <http://localhost:3000>.
 | --- | --- | --- |
 | `ADMIN_PASSWORD` | for `/admin` | Password for the admin area. Without it `/admin` is disabled. |
 | `ADMIN_SECRET` | no | Extra key material for the session cookie. |
-| `REPORT_TOKEN` | recommended | Marks trusted clients (the shortcut) and raises their hourly limit. |
+| `REPORT_TOKEN` | deprecated | Shared secret of the old shortcut setup. Keep it set until the last shortcut has been switched over. |
+| `CLIENT_TOKEN_SECRET` | recommended | Key material for device tokens and challenges. Falls back to `REPORTER_SALT`. Changing it invalidates every issued token. |
 | `REPORTER_SALT` | recommended | Salt for the reporter check value used for abuse protection. |
+| `TRUSTED_PROXY_HOPS` | no | Proxies in front of the app whose `X-Forwarded-For` entries may be trusted. Railway: `1`. Default `1`. |
+| `CLIENT_IP_HEADER` | no | Alternative single header carrying the verified address, e.g. `cf-connecting-ip`. |
+| `POW_RANGE` | no | Search space for the enrollment challenge. Default `30000`. |
+| `SURGE_FLOOR` | no | Reports per hour below which nothing counts as a surge. Default `40`. |
+| `SURGE_FACTOR` | no | Multiple of the usual hour that trips the brake. Default `4`. |
 | `DATABASE_PATH` | no | Path to the SQLite file. Default: `./data/bye-schlachthof.db`. |
 | `BASE_URL` | for production | Public address, read at runtime. Drives the CORS allowance for writes. |
 | `API_CORS_ORIGINS` | no | Additional origins allowed to write, comma separated. `*` opens it fully. |
@@ -56,7 +62,7 @@ The app then runs on <http://localhost:3000>.
 assets/           Source files, not served
 src/
   app/            Pages (App Router) and API routes
-    api/v1/       reports, situation, streets, addresses, meta, openapi
+    api/v1/       reports, clients, situation, streets, addresses, meta, openapi
     admin/        Admin area including CSV export
   components/     Feature components (report form, status card, street ranking)
     ui/           Design system primitives
@@ -115,17 +121,27 @@ needs no logic of its own.
   "message": "Für die Meldung fehlt …" }
 ```
 
-**Access.** Writing works without authentication — the project collects
-anonymously. Abuse protection: a cap of 12 reports per hour and sender (a check
-value derived from the IP address) plus moderation in the admin area. A
-configured `REPORT_TOKEN` marks trusted clients such as the shortcut and raises
-the cap to 40 per hour, which matters because a household shares one address. A
-supplied but wrong token is rejected with `401`.
+**Access.** Writing works without an account — the project collects
+anonymously, and that does not change. What it does have is a token per
+installation: enough to give a quota somebody to follow and to lock out a
+single sender, without ever asking who that sender is. See
+[Abuse protection](#abuse-protection) for the whole arrangement.
+
+| Sender | Reports/hour | Reports/day |
+| --- | --- | --- |
+| Without a token | 5 | 15 |
+| Enrolled browser | 12 | 40 |
+| Enrolled shortcut | 40 | 120 |
+| Ceiling per address | 60 | 200 |
+
+Over the quota is `429`. An unknown token is `401`, a revoked one `403`.
 
 ### Endpoints
 
 | Method | Path | Purpose |
 | --- | --- | --- |
+| `GET` | `/api/v1/clients/challenge` | Fetch a challenge for enrollment |
+| `POST` | `/api/v1/clients` | Enrol a device and receive a token |
 | `POST` | `/api/v1/reports` | Submit a report |
 | `GET` | `/api/v1/reports` | Public reports (`limit`, `hours`) |
 | `GET` | `/api/v1/situation` | Metrics, assessment, latest reports (`limit`) |
@@ -158,8 +174,9 @@ send JSON without a matching `Content-Type` header, which is handled.
 
 ```
 Content-Type: application/json
-X-Report-Token: <REPORT_TOKEN>      # optional
+X-Client-Token: <device token>      # optional, raises the quota
 Idempotency-Key: <your own id>      # optional, prevents duplicates
+X-Report-Token: <REPORT_TOKEN>      # deprecated, see Abuse protection
 ```
 
 Sending the same `Idempotency-Key` again creates no second report: the response
@@ -172,7 +189,7 @@ connection does not file a duplicate.
 ```bash
 curl -X POST https://example.org/api/v1/reports \
   -H "Content-Type: application/json" \
-  -H "X-Report-Token: secret" \
+  -H "X-Client-Token: bs1.7f3k9x2mq8ab.Xy4Zt0Q…" \
   -H "Idempotency-Key: $(uuidgen)" \
   -d '{"severity":4,"latitude":48.1258,"longitude":11.5528}'
 ```
@@ -208,7 +225,9 @@ curl -X POST https://example.org/api/v1/reports \
     "rainLabel": "Kein Regen",
     "precipitationMm": 0,
     "temperatureC": 17.2,
-    "source": "shortcut"
+    "source": "shortcut",
+    "status": "visible",
+    "statusLabel": "Veröffentlicht"
   }
 }
 ```
@@ -224,8 +243,11 @@ string for display. House number and coordinates are never included.
 | `severity_missing` | 400 | `severity` missing or outside 1–5 |
 | `location_missing` | 400 | Neither coordinates nor `address` supplied |
 | `address_not_found` | 422 | `address` could not be resolved |
-| `too_many_reports` | 429 | Hourly cap for this sender reached |
-| `unauthorized` | 401 | Supplied token does not match |
+| `location_out_of_area` | 422 | Location lies outside the Munich frame |
+| `too_many_reports` | 429 | Quota for this device or address exhausted |
+| `unauthorized` | 401 | Supplied token is unknown or malformed |
+| `token_revoked` | 403 | This device has been locked out |
+| `challenge_failed` | 400 | Enrollment task unsolved, expired or already spent |
 | `save_failed` | 500 | Database unavailable |
 
 ### CORS
@@ -254,13 +276,111 @@ idempotency, and prints a sample response. Pass a token as the second argument.
    then no coordinates are needed.
 3. **Dictionary** with `severity` plus either `latitude`/`longitude` or `address`.
 4. **Get Contents of URL** — method `POST`, request body `JSON`, add the
-   `X-Report-Token` header.
+   `X-Client-Token` header with the token from `/kurzbefehl`.
 5. **Show Notification** with the value of `message` — it fits both success and
    failure.
 
 Once the shortcut is finished and shared as an iCloud link, put that link into
 `NEXT_PUBLIC_SHORTCUT_URL`. The `/kurzbefehl` page then shows the install button
 instead of the placeholder note.
+
+---
+
+## Abuse protection
+
+Nobody creates an account, and the write endpoint is documented at
+`/api/v1/openapi` for anyone to find. The measures below therefore assume a
+caller who has read all of this and is not a browser.
+
+The attack worth designing against is not volume for its own sake. It is a
+steady stream of plausible reports — a hundred quiet severity-1 entries from
+across the district — meant to pull the averages down and let somebody argue
+the data is unreliable. Volume is cheap to survive; a set of public figures
+that cannot be defended afterwards is not.
+
+### Who is sending
+
+**Devices enrol themselves.** `POST /api/v1/clients` issues a token for one
+installation in exchange for a solved challenge. No account, no mail address,
+no name — the token records only that somebody did the work once. The website
+enrols in the background while the form is being filled in, so a visitor
+notices nothing. The shortcut gets its token from a button on `/kurzbefehl`,
+because the Kurzbefehle app cannot compute a hash itself and so cannot solve
+the challenge on its own.
+
+The point is not that a token is hard to obtain. It is that quotas can follow
+a device instead of the address it happens to be sending from, and that one
+sender can be locked out without everyone else being re-equipped. That was the
+flaw in the shared `REPORT_TOKEN`: every shortcut carried the same copy,
+readable by anyone who opened it, revocable only for all of them at once. It
+keeps working during the migration and should be removed afterwards.
+
+**The challenge** is signed rather than stored, and each solution is spent
+exactly once, so one piece of work cannot mint a supply of tokens. Being
+self-hosted, it puts no third party between the visitor and the site — which
+keeps the privacy statement as short as it is.
+
+Do not mistake it for a wall. Native code hashes far faster than a browser,
+and a determined caller will still get tokens. What bounds the supply is the
+cap of five enrollments per address per day; the work only makes each one cost
+something.
+
+### How much is arriving
+
+Quotas apply per token and per address, hourly and daily — the table is under
+[API](#api). The address ceiling sits above the device quotas rather
+than replacing them, because a household has several devices and one
+connection.
+
+**The surge brake** is the measure that still helps if everything above is
+defeated. Once an hour runs past `SURGE_FACTOR` times the median of the last
+fortnight, and never below `SURGE_FLOOR`, reports from senders without a
+history stop being published directly: they are stored, they are counted, and
+they wait in the admin area. A device that has been around a day with three
+reports behind it publishes straight through, and the sender is told plainly
+that the report is under review rather than left to assume otherwise. The
+worst case is then a moderation queue instead of public figures nobody can
+defend.
+
+### What the figures are built on
+
+Public counts and averages use one entry per sender and hour, at the highest
+severity of that hour. Pressing the button ten times counts once; ten
+neighbours count ten times. The street figures keep the street in the key, so
+one sender counts once per street and hour.
+
+This is deliberately independent of the street for the overall counts: the
+street is filled in asynchronously, and keyed on it a burst arriving faster
+than the lookups would slip through while the rows still said nothing about
+where they came from.
+
+### The rest
+
+- **Only Munich.** Coordinates outside the frame in `src/lib/geo.ts` are
+  rejected with `location_out_of_area`, which costs local reporters nothing
+  and makes flooding from anywhere else pointless.
+- **Quota before geocoding.** A sender over their limit never triggers a
+  Nominatim lookup — that is the reliable way to get the server blocked by
+  OSM.
+- **The address the limit is keyed on.** `X-Forwarded-For` is a list every
+  proxy appends to, so the trusted entry is the rightmost, not the first.
+  `TRUSTED_PROXY_HOPS` says how many proxies stand in front; setting it too
+  high lets senders fake their address. IPv6 is reduced to its /64, so the
+  addresses inside one customer allocation cannot be rotated for a fresh
+  quota.
+- **Revoking.** The admin area lists the enrolled devices — a public id, the
+  day it was enrolled, the number of reports. Locking one out offers to hide
+  everything it ever sent in the same step.
+- **CORS is not a defence.** It restricts browsers. `curl` sends no `Origin`
+  and is unaffected. It is there to stop other sites posting on a visitor's
+  behalf, nothing more.
+
+### Data protection
+
+A device token is pseudonymous and stored, so it belongs in the privacy
+statement — but it identifies less than the address check value already kept
+alongside every report. Reporting without a token stays possible, and the
+tighter quota is the only consequence.
 
 ---
 

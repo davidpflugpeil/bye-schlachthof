@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { ERROR_CODES, TOKEN_HEADER, optionsResponse } from "@/lib/api";
+import { CLIENT_TOKEN_HEADER, ERROR_CODES, TOKEN_HEADER, optionsResponse } from "@/lib/api";
 import { DURATIONS, ODOR_TYPES } from "@/lib/format";
 import { COMMENT_MAX_LENGTH } from "@/lib/create-report";
 
@@ -40,6 +40,12 @@ const REPORT_SCHEMA = {
     precipitationMm: { type: ["number", "null"] },
     temperatureC: { type: ["number", "null"] },
     source: { type: "string", enum: ["web", "shortcut"] },
+    status: {
+      type: "string",
+      enum: ["visible", "pending"],
+      description: "`pending` means the surge brake is holding the report back from the figures.",
+    },
+    statusLabel: { type: "string", example: "Veröffentlicht" },
   },
 } as const;
 
@@ -55,6 +61,18 @@ const ERROR_SCHEMA = {
       },
     },
     message: { type: "string", description: "Same as error.message — for shortcuts" },
+  },
+} as const;
+
+const CHALLENGE_SCHEMA = {
+  type: "object",
+  description: "Find the number whose SHA-256 hash, prefixed with the salt, equals `challenge`.",
+  properties: {
+    salt: { type: "string" },
+    challenge: { type: "string", description: "sha256(salt + number) as hex" },
+    maxNumber: { type: "integer", description: "Upper bound of the search space" },
+    expires: { type: "integer", description: "Valid until, epoch milliseconds" },
+    signature: { type: "string", description: "Send back unchanged" },
   },
 } as const;
 
@@ -78,22 +96,114 @@ export async function GET(request: Request) {
     ],
     components: {
       securitySchemes: {
+        ClientToken: {
+          type: "apiKey",
+          in: "header",
+          name: CLIENT_TOKEN_HEADER,
+          description:
+            "Optional. Anonymous token for one installation, obtained from POST /clients. Raises the quota and can be revoked on its own. Reporting also works without one.",
+        },
         ReportToken: {
           type: "apiKey",
           in: "header",
           name: TOKEN_HEADER,
           description:
-            "Optional. Marks trusted clients such as the shortcut and raises the hourly limit. Reporting also works without a token.",
+            "Deprecated. Shared secret of the old shortcut setup — every installation carries the same copy, so it identifies nobody. Use ClientToken instead.",
         },
       },
-      schemas: { Report: REPORT_SCHEMA, Error: ERROR_SCHEMA },
+      schemas: { Report: REPORT_SCHEMA, Error: ERROR_SCHEMA, Challenge: CHALLENGE_SCHEMA },
     },
     paths: {
+      "/clients/challenge": {
+        get: {
+          tags: ["Support"],
+          summary: "Fetch a challenge for enrollment",
+          description:
+            "Returns a task that has to be solved before a token is issued: find the number whose SHA-256 hash, prefixed with the salt, matches `challenge`. Costs a browser a second or two and has to be paid again for every token.",
+          responses: {
+            "200": {
+              description: "Challenge",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      ok: { type: "boolean", enum: [true] },
+                      challenge: { $ref: "#/components/schemas/Challenge" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/clients": {
+        post: {
+          tags: ["Support"],
+          summary: "Enrol a device and receive a token",
+          description:
+            "Hands out an anonymous token for one installation in exchange for a solved challenge. No account, no address, no name. One solution mints one token, and an address may enrol a limited number per day.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["salt", "challenge", "number", "expires", "signature"],
+                  properties: {
+                    salt: { type: "string" },
+                    challenge: { type: "string" },
+                    number: { type: "integer", description: "The solution" },
+                    expires: { type: "integer" },
+                    signature: { type: "string" },
+                    kind: { type: "string", enum: ["web", "shortcut"], default: "web" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Token issued",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      ok: { type: "boolean", enum: [true] },
+                      message: { type: "string" },
+                      token: {
+                        type: "string",
+                        description: "Send as the ClientToken header. Shown only once.",
+                        example: "bs1.7f3k9x2mq8ab.Xy4Zt0Q…",
+                      },
+                      client: {
+                        type: "object",
+                        properties: {
+                          publicId: { type: "string" },
+                          kind: { type: "string", enum: ["web", "shortcut"] },
+                          createdAt: { type: "string" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Challenge unsolved, expired or already spent",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+            },
+            "429": { description: "This address has enrolled enough devices today" },
+          },
+        },
+      },
       "/reports": {
         post: {
           tags: ["Reports"],
           summary: "Submit an odor report",
-          security: [{}, { ReportToken: [] }],
+          security: [{}, { ClientToken: [] }, { ReportToken: [] }],
           parameters: [
             {
               name: "Idempotency-Key",
@@ -172,9 +282,12 @@ export async function GET(request: Request) {
               description: "Input incomplete",
               content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
             },
-            "401": { description: "Token invalid" },
-            "422": { description: "Address could not be resolved" },
-            "429": { description: "Too many reports within the last hour" },
+            "401": { description: "Token invalid or unknown" },
+            "403": { description: "This device has been revoked" },
+            "422": {
+              description: "Address could not be resolved, or the location lies outside Munich",
+            },
+            "429": { description: "Quota for this device or address exhausted" },
           },
         },
         get: {

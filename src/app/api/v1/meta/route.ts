@@ -1,11 +1,21 @@
-import { API_VERSION, ERROR_CODES, TOKEN_HEADER, optionsResponse, success } from "@/lib/api";
+import {
+  API_VERSION,
+  CLIENT_TOKEN_HEADER,
+  ERROR_CODES,
+  TOKEN_HEADER,
+  optionsResponse,
+  success,
+} from "@/lib/api";
 import { DURATIONS, ODOR_TYPES, SEVERITY_LEVELS } from "@/lib/format";
 import {
+  ADDRESS_QUOTA,
   BACKDATE_HOURS,
   COMMENT_MAX_LENGTH,
+  QUOTAS,
   REPORTS_PER_HOUR,
   REPORTS_PER_HOUR_WITH_TOKEN,
 } from "@/lib/create-report";
+import { ENROLLMENTS_PER_DAY } from "@/lib/clients";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +39,27 @@ export async function GET(request: Request) {
         reportsPerHourWithToken: REPORTS_PER_HOUR_WITH_TOKEN,
         commentMaxLength: COMMENT_MAX_LENGTH,
         backdateHours: BACKDATE_HOURS,
+        /** Per trust tier, plus the ceiling that applies to one address. */
+        quotas: { ...QUOTAS, address: ADDRESS_QUOTA },
+        enrollmentsPerDay: ENROLLMENTS_PER_DAY,
+      },
+      /**
+       * Reporting works without a token — the project collects anonymously.
+       * A device token only raises the quota and can be revoked on its own.
+       */
+      client: {
+        required: false,
+        header: CLIENT_TOKEN_HEADER,
+        challengeEndpoint: "/api/v1/clients/challenge",
+        enrollEndpoint: "/api/v1/clients",
+        kinds: ["web", "shortcut"],
       },
       token: {
-        /** Reporting works without a token — the project collects anonymously. */
+        /** The shared secret of the old shortcut setup, on its way out. */
         required: false,
         active: Boolean(process.env.REPORT_TOKEN?.trim()),
         header: TOKEN_HEADER,
+        deprecated: true,
       },
       errorCodes: ERROR_CODES,
     },

@@ -32,6 +32,37 @@ check() {
 
 status() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 
+# Solves the proof of work and returns the issued token, or nothing on
+# failure. Python does the hashing — a shell loop would take far too long.
+enrol() {
+  local kind="${1:-web}"
+  curl -s "$API/clients/challenge" | python3 -c "
+import hashlib, json, sys, urllib.request
+
+data = json.load(sys.stdin)
+if not data.get('ok'):
+    sys.exit(1)
+task = data['challenge']
+salt, target = task['salt'], task['challenge']
+
+for number in range(task['maxNumber'] + 1):
+    if hashlib.sha256(f'{salt}{number}'.encode()).hexdigest() == target:
+        break
+else:
+    sys.exit(1)
+
+body = json.dumps({**task, 'number': number, 'kind': '$kind'}).encode()
+request = urllib.request.Request(
+    '$API/clients', data=body, headers={'Content-Type': 'application/json'}
+)
+try:
+    with urllib.request.urlopen(request) as response:
+        print(json.load(response).get('token', ''))
+except Exception:
+    sys.exit(1)
+"
+}
+
 echo "Checking API: $API"
 [ -n "$TOKEN" ] && echo "With token" || echo "Without token"
 echo
@@ -51,28 +82,43 @@ check "OPTIONS /reports"              204 "$(status -X OPTIONS "$API/reports")"
 check "OPTIONS /situation"            204 "$(status -X OPTIONS "$API/situation")"
 
 echo
+echo "Enrollment"
+CLIENT_TOKEN="$(enrol shortcut || true)"
+if [ -n "$CLIENT_TOKEN" ]; then
+  check "POST /clients (challenge solved)" "ok" "ok"
+  CLIENT_HEADER=(-H "X-Client-Token: $CLIENT_TOKEN")
+else
+  check "POST /clients (challenge solved)" "ok" "failed"
+  CLIENT_HEADER=()
+fi
+check "GET /clients/challenge"        200 "$(status "$API/clients/challenge")"
+check "POST /clients unsolved"        400 "$(status -X POST "$API/clients" -H 'Content-Type: application/json' -d '{"salt":"x","challenge":"y","number":1,"expires":9999999999999,"signature":"z"}')"
+
+echo
 echo "Writing — error cases"
 check "POST without severity"         400 "$(status -X POST "$API/reports" -H 'Content-Type: application/json' -d '{"latitude":48.1258,"longitude":11.5528}')"
 check "POST without location"         400 "$(status -X POST "$API/reports" -H 'Content-Type: application/json' -d '{"severity":3}')"
 check "POST unknown address"          422 "$(status -X POST "$API/reports" -H 'Content-Type: application/json' -d '{"severity":3,"address":"Qxzyv Nichtstrasse 999"}')"
 check "POST unreadable body"          400 "$(status -X POST "$API/reports" -H 'Content-Type: application/json' -d '{broken')"
+check "POST outside the area"         422 "$(status -X POST "$API/reports" -H 'Content-Type: application/json' -d '{"severity":3,"latitude":52.52,"longitude":13.405}')"
+check "POST unknown client token"     401 "$(status -X POST "$API/reports" -H 'Content-Type: application/json' -H 'X-Client-Token: bs1.deadbeefdead.nope' -d '{"severity":3,"latitude":48.1258,"longitude":11.5528}')"
 if [ -n "$TOKEN" ]; then
   check "POST wrong token"            401 "$(status -X POST "$API/reports" -H 'Content-Type: application/json' -H 'X-Report-Token: wrong' -d '{"severity":3,"latitude":48.1258,"longitude":11.5528}')"
 fi
 
 echo
 echo "Writing — success cases"
-check "POST coordinates (JSON)"       201 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" -H 'Content-Type: application/json' -d '{"severity":2,"latitude":48.1258,"longitude":11.5528,"odorType":"rotten","duration":"short","comment":"Prüflauf der Schnittstelle"}')"
-check "POST form data"                201 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" -H 'Content-Type: application/x-www-form-urlencoded' -d 'severity=3&latitude=48.1273&longitude=11.5602')"
-check "POST address instead of coords" 201 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" -H 'Content-Type: application/json' -d '{"severity":2,"address":"Tumblingerstraße, München"}')"
+check "POST coordinates (JSON)"       201 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" "${CLIENT_HEADER[@]}" -H 'Content-Type: application/json' -d '{"severity":2,"latitude":48.1258,"longitude":11.5528,"odorType":"rotten","duration":"short","comment":"Prüflauf der Schnittstelle"}')"
+check "POST form data"                201 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" "${CLIENT_HEADER[@]}" -H 'Content-Type: application/x-www-form-urlencoded' -d 'severity=3&latitude=48.1273&longitude=11.5602')"
+check "POST address instead of coords" 201 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" "${CLIENT_HEADER[@]}" -H 'Content-Type: application/json' -d '{"severity":2,"address":"Tumblingerstraße, München"}')"
 
 KEY="check-$(date +%s)-$RANDOM"
-check "POST with Idempotency-Key"     201 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" -H 'Content-Type: application/json' -H "Idempotency-Key: $KEY" -d '{"severity":4,"latitude":48.1232,"longitude":11.5560}')"
-check "POST same key (no second row)" 200 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" -H 'Content-Type: application/json' -H "Idempotency-Key: $KEY" -d '{"severity":4,"latitude":48.1232,"longitude":11.5560}')"
+check "POST with Idempotency-Key"     201 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" "${CLIENT_HEADER[@]}" -H 'Content-Type: application/json' -H "Idempotency-Key: $KEY" -d '{"severity":4,"latitude":48.1232,"longitude":11.5560}')"
+check "POST same key (no second row)" 200 "$(status -X POST "$API/reports" "${TOKEN_HEADER[@]}" "${CLIENT_HEADER[@]}" -H 'Content-Type: application/json' -H "Idempotency-Key: $KEY" -d '{"severity":4,"latitude":48.1232,"longitude":11.5560}')"
 
 echo
 echo "Sample response"
-curl -s -X POST "$API/reports" "${TOKEN_HEADER[@]}" -H 'Content-Type: application/json' \
+curl -s -X POST "$API/reports" "${TOKEN_HEADER[@]}" "${CLIENT_HEADER[@]}" -H 'Content-Type: application/json' \
   -d '{"severity":4,"latitude":48.1252,"longitude":11.5559}' |
   python3 -m json.tool 2>/dev/null | head -30
 

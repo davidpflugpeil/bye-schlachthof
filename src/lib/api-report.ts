@@ -44,6 +44,9 @@ export interface ApiReport {
   precipitationMm: number | null;
   temperatureC: number | null;
   source: string;
+  /** `pending` means the surge brake is holding it back from the figures. */
+  status: string;
+  statusLabel: string;
 }
 
 export function toApiReport(report: Report): ApiReport {
@@ -76,6 +79,8 @@ export function toApiReport(report: Report): ApiReport {
     precipitationMm: report.precipitationMm,
     temperatureC: report.temperatureC,
     source: report.source,
+    status: report.status,
+    statusLabel: report.status === "pending" ? "In Prüfung" : "Veröffentlicht",
   };
 }
 
