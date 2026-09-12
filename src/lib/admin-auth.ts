@@ -6,10 +6,31 @@ import { cookies } from "next/headers";
 const COOKIE_NAME = "bye_schlachthof_admin";
 const VALID_DAYS = 7;
 
+/**
+ * Key material for the session cookie signature.
+ *
+ * The admin password already carries most of the secrecy, so `ADMIN_SECRET`
+ * is defence in depth: it keeps the signing key from being derived solely
+ * from a password that may be weak. When it is not configured it falls back
+ * to a hash of the database URL rather than a constant — a constant sitting
+ * in a public repository is the one half an attacker would otherwise know.
+ *
+ * Changing either value invalidates all open admin sessions, which makes
+ * rotating `ADMIN_SECRET` a convenient "sign everyone out" lever.
+ */
 function secret(): string | null {
   const password = process.env.ADMIN_PASSWORD?.trim();
   if (!password) return null;
-  return `${password}:${process.env.ADMIN_SECRET?.trim() ?? "bye-schlachthof"}`;
+
+  const configured = process.env.ADMIN_SECRET?.trim();
+  if (configured) return `${password}:${configured}`;
+
+  const databaseUrl = process.env.DATABASE_URL?.trim() || process.env.POSTGRES_URL?.trim();
+  const derived = databaseUrl
+    ? crypto.createHash("sha256").update(`admin-secret:${databaseUrl}`).digest("hex")
+    : "bye-schlachthof-development";
+
+  return `${password}:${derived}`;
 }
 
 export function adminEnabled(): boolean {
