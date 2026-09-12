@@ -173,6 +173,22 @@ export const DURATION_VALUES = DURATIONS.map((d) => d.value) as Duration[];
  * Validates the input, stores the report and enriches it with street,
  * district and weather. The report is kept even when enrichment fails.
  */
+/**
+ * Names the fields that arrived, for the error messages. A shortcut is built by
+ * hand and shows only the message, so "nothing arrived" and "wrong field name"
+ * have to be distinguishable without a look at the server.
+ */
+function receivedFields(input: SubmitInput): string {
+  const keys = Object.keys(input).filter((key) => {
+    const value = (input as Record<string, unknown>)[key];
+    return value !== undefined && value !== null && value !== "";
+  });
+
+  if (keys.length === 0) return "Angekommen ist kein einziges Feld.";
+  const shown = keys.slice(0, 8).join(", ");
+  return `Angekommen sind: ${shown}${keys.length > 8 ? " …" : ""}.`;
+}
+
 export async function submitReport(
   input: SubmitInput,
   context: SubmitContext,
@@ -188,7 +204,7 @@ export async function submitReport(
     return {
       ok: false,
       code: "severity_missing",
-      message: "Bitte gib an, wie stark es gerade riecht – ein Wert zwischen 1 und 5.",
+      message: `Bitte gib an, wie stark es gerade riecht – ein Wert zwischen 1 und 5. ${receivedFields(input)}`,
     };
   }
 
@@ -296,7 +312,8 @@ async function resolveInputLocation(input: SubmitInput): Promise<LocationResult>
     ok: false,
     code: "location_missing",
     message:
-      "Für die Meldung fehlt noch der Ort. Schicke „latitude“ und „longitude“ oder das Feld „address“.",
+      "Für die Meldung fehlt noch der Ort. Schicke „latitude“ und „longitude“ oder das Feld " +
+      `„address“. ${receivedFields(input)}`,
   };
 }
 
