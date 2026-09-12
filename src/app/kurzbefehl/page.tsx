@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
-import { Crosshair, Hand, Home, MapPin, Smartphone, Sparkles } from "lucide-react";
+import { Crosshair, Hand, Home, Smartphone, Sparkles } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
-import { baseUrl } from "@/lib/base-url";
 import { ButtonLink } from "@/components/ui/button";
-import { CopyButton } from "@/components/copy-button";
 
 export const metadata: Metadata = {
   title: "iPhone-Kurzbefehl",
@@ -37,94 +35,43 @@ const SETUP_STEPS = [
 
 export default function ShortcutPage() {
   const shortcutUrl = process.env.NEXT_PUBLIC_SHORTCUT_URL?.trim();
-  const apiBase = baseUrl();
 
   return (
     <div className="page-shell py-6 sm:py-10">
       {/* Intro */}
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-12">
-        <div className="max-w-2xl">
-          <p className="text-sm font-semibold tracking-wide text-brand uppercase">
-            Für iPhone und iPad
-          </p>
-          <h1 className="mt-1.5 text-[1.75rem] leading-tight font-bold tracking-[-0.022em] text-ink sm:text-[2.25rem]">
-            Geruch mit einem Fingertipp melden
-          </h1>
-          <p className="mt-4 text-[1.0625rem] leading-relaxed text-ink-soft sm:text-lg">
-            Mit dem iPhone-Kurzbefehl kannst du eine Meldung in wenigen Sekunden senden – direkt vom
-            Homescreen, ohne die Website zu öffnen.
-          </p>
-
-          <div className="mt-6">
-            {shortcutUrl ? (
-              <ButtonLink href={shortcutUrl} size="xl" target="_blank" rel="noopener noreferrer">
-                <Sparkles className="size-5" aria-hidden />
-                Kurzbefehl installieren
-              </ButtonLink>
-            ) : (
-              <div className="rounded-xl border border-sand bg-sand-soft p-4 sm:p-5">
-                <p className="text-[0.9375rem] leading-relaxed text-ink">
-                  <span className="font-semibold">Der Kurzbefehl wird gerade fertiggestellt.</span>{" "}
-                  Sobald er bereitsteht, erscheint hier ein Knopf zum direkten Installieren. Bis
-                  dahin kannst du eine Meldung über die Website abgeben – das dauert ebenfalls nur
-                  wenige Sekunden.
-                </p>
-                <ButtonLink href="/melden" size="md" className="mt-4">
-                  Geruch melden
-                </ButtonLink>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <Card tone="brand" className="hidden self-start lg:block">
-          <h2 className="text-base font-bold text-ink">Warum ein Kurzbefehl?</h2>
-          <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-soft">
-            Geruch tritt oft kurz und unerwartet auf. Je weniger Schritte zwischen Wahrnehmung und
-            Meldung liegen, desto vollständiger wird die Dokumentation.
-          </p>
-        </Card>
-      </div>
-
-      {/* Two setup variants */}
-      <section aria-labelledby="varianten" className="mt-12">
-        <h2 id="varianten" className="text-xl font-bold text-ink sm:text-2xl">
-          Zwei Möglichkeiten
-        </h2>
-        <p className="mt-2 max-w-2xl text-[1.0625rem] leading-relaxed text-ink-soft">
-          Beide führen zum selben Ergebnis. Wähle, was besser zu dir passt.
+      <div className="max-w-2xl">
+        <p className="text-sm font-semibold tracking-wide text-brand uppercase">
+          Für iPhone und iPad
+        </p>
+        <h1 className="mt-1.5 text-[1.75rem] leading-tight font-bold tracking-[-0.022em] text-ink sm:text-[2.25rem]">
+          Geruch mit einem Fingertipp melden
+        </h1>
+        <p className="mt-4 text-[1.0625rem] leading-relaxed text-ink-soft sm:text-lg">
+          Mit dem iPhone-Kurzbefehl kannst du eine Meldung in wenigen Sekunden senden – direkt vom
+          Homescreen, ohne die Website zu öffnen.
         </p>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <Card className="flex h-full flex-col">
-            <span className="flex size-11 items-center justify-center rounded-full bg-brand-soft text-brand">
-              <Crosshair className="size-5" aria-hidden />
-            </span>
-            <h3 className="mt-4 text-lg font-bold text-ink">Mit aktuellem Standort</h3>
-            <p className="mt-2 flex-1 text-[0.9375rem] leading-relaxed text-ink-soft">
-              Das iPhone ermittelt deinen Standort bei jeder Meldung. Sinnvoll, wenn du dich
-              häufiger an unterschiedlichen Orten aufhältst.
-            </p>
-            <p className="mt-4 border-t border-line pt-3.5 text-sm text-ink-soft">
-              Erfordert einmalig die Freigabe des Standorts für die App „Kurzbefehle“.
-            </p>
-          </Card>
-
-          <Card className="flex h-full flex-col">
-            <span className="flex size-11 items-center justify-center rounded-full bg-sand text-ink">
-              <MapPin className="size-5" aria-hidden />
-            </span>
-            <h3 className="mt-4 text-lg font-bold text-ink">Mit gespeicherter Adresse</h3>
-            <p className="mt-2 flex-1 text-[0.9375rem] leading-relaxed text-ink-soft">
-              Du hinterlegst deine Adresse einmalig. Danach musst du sie nicht erneut eingeben – und
-              der Standort muss nicht freigegeben werden.
-            </p>
-            <p className="mt-4 border-t border-line pt-3.5 text-sm text-ink-soft">
-              Gut geeignet, wenn du überwiegend zu Hause meldest.
-            </p>
-          </Card>
+        <div className="mt-6">
+          {shortcutUrl ? (
+            <ButtonLink href={shortcutUrl} size="xl" target="_blank" rel="noopener noreferrer">
+              <Sparkles className="size-5" aria-hidden />
+              Kurzbefehl installieren
+            </ButtonLink>
+          ) : (
+            <div className="rounded-xl border border-sand bg-sand-soft p-4 sm:p-5">
+              <p className="text-[0.9375rem] leading-relaxed text-ink">
+                <span className="font-semibold">Der Kurzbefehl wird gerade fertiggestellt.</span>{" "}
+                Sobald er bereitsteht, erscheint hier ein Knopf zum direkten Installieren. Bis
+                dahin kannst du eine Meldung über die Website abgeben – das dauert ebenfalls nur
+                wenige Sekunden.
+              </p>
+              <ButtonLink href="/melden" size="md" className="mt-4">
+                Geruch melden
+              </ButtonLink>
+            </div>
+          )}
         </div>
-      </section>
+      </div>
 
       {/* Setup steps */}
       <section aria-labelledby="einrichtung" className="mt-12">
@@ -150,40 +97,6 @@ export default function ShortcutPage() {
             </li>
           ))}
         </ol>
-      </section>
-
-      {/* Technical details, deliberately understated */}
-      <section className="mt-12 max-w-2xl">
-        <details className="group rounded-xl border border-line bg-surface-muted p-4 sm:p-5">
-          <summary className="cursor-pointer list-none text-[0.9375rem] font-semibold text-ink-soft transition-colors hover:text-ink">
-            Technische Angaben für die manuelle Einrichtung
-          </summary>
-          <div className="mt-4 space-y-3 text-[0.9375rem] leading-relaxed text-ink-soft">
-            <p>
-              Wer den Kurzbefehl selbst zusammenstellen möchte, sendet eine Anfrage vom Typ POST an
-              die folgende Adresse. Eine ausführliche Anleitung liegt der Projektdokumentation bei.
-            </p>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <code className="min-w-0 flex-1 overflow-x-auto rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink">
-                {apiBase}/api/v1/reports
-              </code>
-              <CopyButton value={`${apiBase}/api/v1/reports`} label="Adresse kopieren" />
-            </div>
-            <p>
-              Erwartet werden die Felder <code className="text-ink">severity</code> (1–5) und{" "}
-              entweder <code className="text-ink">latitude</code> und{" "}
-              <code className="text-ink">longitude</code> oder{" "}
-              <code className="text-ink">address</code>.
-            </p>
-            <p>
-              Die Schreibweise ist großzügig: <code className="text-ink">lat</code>,{" "}
-              <code className="text-ink">lon</code> und Großbuchstaben gehen ebenso, ein
-              Dezimalkomma auch. Wer nur einen Wert übergeben kann, nimmt{" "}
-              <code className="text-ink">location</code> – darin passt{" "}
-              <code className="text-ink">48.1258, 11.5528</code> genauso wie eine Adresse.
-            </p>
-          </div>
-        </details>
       </section>
 
       {/* Closing */}
