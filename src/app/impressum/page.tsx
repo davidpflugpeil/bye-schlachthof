@@ -28,15 +28,8 @@ export default function ImprintPage() {
           </Section>
 
           <Section title="Kontakt">
-            <p>
-              E-Mail:{" "}
-              <a
-                href="mailto:david@pflugpeil.com"
-                className="font-semibold text-brand-deep underline underline-offset-4 transition-colors hover:text-brand"
-              >
-                david@pflugpeil.com
-              </a>
-            </p>
+            {/* Written out rather than linked, so address harvesters have to work for it. */}
+            <p>E-Mail: david at pflugpeil dot com</p>
           </Section>
 
           <Section title="Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV">
