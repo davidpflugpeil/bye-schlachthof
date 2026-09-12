@@ -265,6 +265,13 @@ sets `NEXT_PUBLIC_SHORTCUT_URL` to that link instead — note it is inlined at
 build time, so on Docker it has to be passed as a build argument, not only as a
 runtime variable.
 
+The `/kurzbefehl` page also shows a silent walkthrough, `public/kurzbefehl.mp4`
+(H.264, 600x1304, no audio track), which loops on the page. It deliberately ends
+right after the severity prompt: the location prompt that follows shows the
+reporter's street address on a map, so it is cut rather than shown. Anyone
+re-recording the walkthrough has to leave that step out again — the page serves
+the video publicly.
+
 ---
 
 ## Operations

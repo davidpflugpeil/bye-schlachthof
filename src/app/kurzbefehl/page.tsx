@@ -66,6 +66,39 @@ export default function ShortcutPage() {
         </div>
       </div>
 
+      {/* Walkthrough video */}
+      <section aria-labelledby="video" className="mt-12">
+        <h2 id="video" className="text-xl font-bold text-ink sm:text-2xl">
+          Einrichtung im Video
+        </h2>
+        <p className="mt-2 max-w-2xl text-[1.0625rem] leading-relaxed text-ink-soft">
+          Vom Installieren bis zur ersten Meldung – der ganze Ablauf in gut zwanzig Sekunden.
+        </p>
+
+        <figure className="mt-5">
+          <video
+            className="h-auto w-full max-w-[17rem] rounded-[1.75rem] border border-line bg-surface-muted shadow-sm"
+            src="/kurzbefehl.mp4"
+            poster="/kurzbefehl-poster.jpg"
+            width={600}
+            height={1304}
+            autoPlay
+            loop
+            muted
+            playsInline
+            controls
+            aria-describedby="video-beschreibung"
+          />
+          <figcaption
+            id="video-beschreibung"
+            className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft"
+          >
+            Bildschirmaufnahme ohne Ton: Kurzbefehl installieren, auf den Homescreen legen und eine
+            Meldung abgeben.
+          </figcaption>
+        </figure>
+      </section>
+
       {/* Setup steps */}
       <section aria-labelledby="einrichtung" className="mt-12">
         <h2 id="einrichtung" className="text-xl font-bold text-ink sm:text-2xl">
