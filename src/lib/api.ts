@@ -2,6 +2,8 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
+import { baseUrl } from "./base-url";
+
 export const API_VERSION = "1";
 export const TOKEN_HEADER = "X-Report-Token";
 
@@ -49,12 +51,10 @@ function allowedOrigins(): string[] {
       .filter(Boolean);
   }
 
-  // `BASE_URL` is read at runtime. `NEXT_PUBLIC_BASE_URL` is inlined at build
-  // time — fine as a fallback, but it cannot be changed afterwards.
-  const base = process.env.BASE_URL?.trim() || process.env.NEXT_PUBLIC_BASE_URL?.trim();
-  if (!base) return [];
+  // Falls back to Vercel's system variables, so a deployment needs no manual
+  // URL configuration for same-origin writes to work.
   try {
-    return [new URL(base).origin];
+    return [new URL(baseUrl()).origin];
   } catch {
     return [];
   }

@@ -51,14 +51,32 @@ export type SubmitResult =
   | { ok: true; report: Report; duplicate: boolean }
   | { ok: false; code: ErrorCode; message: string };
 
+/**
+ * The salt is what keeps the reporter check value from being reversible to an
+ * IP address. When it is not configured explicitly, it is derived from the
+ * database URL: a value that is secret, stable across deploys and present on
+ * every host. A hard-coded constant would make the hashes guessable for
+ * anyone who reads this public repository.
+ */
+function reporterSalt(): string {
+  const configured = process.env.REPORTER_SALT?.trim();
+  if (configured) return configured;
+
+  const databaseUrl = process.env.DATABASE_URL?.trim() || process.env.POSTGRES_URL?.trim();
+  if (databaseUrl) {
+    return crypto.createHash("sha256").update(`reporter-salt:${databaseUrl}`).digest("hex");
+  }
+
+  return "bye-schlachthof-development-salt";
+}
+
 export function reporterHash(request: Request): string {
   const headers = request.headers;
   const ip =
     headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     headers.get("x-real-ip")?.trim() ||
     "local";
-  const salt = process.env.REPORTER_SALT ?? "bye-schlachthof-default-salt";
-  return crypto.createHash("sha256").update(`${salt}:${ip}`).digest("hex").slice(0, 32);
+  return crypto.createHash("sha256").update(`${reporterSalt()}:${ip}`).digest("hex").slice(0, 32);
 }
 
 /* ------------------------------------------------------------------ */

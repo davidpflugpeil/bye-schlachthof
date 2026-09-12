@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Crosshair, Hand, Home, MapPin, Smartphone, Sparkles } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
+import { baseUrl } from "@/lib/base-url";
 import { ButtonLink } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
 
@@ -36,7 +37,7 @@ const SETUP_STEPS = [
 
 export default function ShortcutPage() {
   const shortcutUrl = process.env.NEXT_PUBLIC_SHORTCUT_URL?.trim();
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim() || "http://localhost:3000";
+  const apiBase = baseUrl();
 
   return (
     <div className="page-shell py-6 sm:py-10">
@@ -164,9 +165,9 @@ export default function ShortcutPage() {
             </p>
             <div className="flex flex-wrap items-center gap-2.5">
               <code className="min-w-0 flex-1 overflow-x-auto rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink">
-                {baseUrl}/api/v1/reports
+                {apiBase}/api/v1/reports
               </code>
-              <CopyButton value={`${baseUrl}/api/v1/reports`} label="Adresse kopieren" />
+              <CopyButton value={`${apiBase}/api/v1/reports`} label="Adresse kopieren" />
             </div>
             <p>
               Erwartet werden die Felder <code className="text-ink">severity</code> (1–5) und{" "}

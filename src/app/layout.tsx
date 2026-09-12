@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { StickyCta } from "@/components/sticky-cta";
 import { ToastProvider } from "@/components/ui/toast";
 import { PROJECT_NAME } from "@/lib/navigation";
+import { baseUrl } from "@/lib/base-url";
 
 const schrift = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -15,7 +16,7 @@ const schrift = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL?.trim() || "http://localhost:3000"),
+  metadataBase: new URL(baseUrl()),
   title: {
     default: `${PROJECT_NAME} – Geruchsbelastung gemeinsam dokumentieren`,
     template: `%s · ${PROJECT_NAME}`,
