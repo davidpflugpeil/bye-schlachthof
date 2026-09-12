@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.github
+data
+assets
+.env
+.env.local
+*.md
+.DS_Store
+.claude
