@@ -6,7 +6,7 @@ import { reportNoun } from "@/lib/format";
 import { StatusCard } from "@/components/status-card";
 import { IncidentCard } from "@/components/incident-card";
 import { StreetRanking } from "@/components/street-ranking";
-import { ShortcutCard } from "@/components/shortcut-card";
+import { ShortcutBanner } from "@/components/shortcut-banner";
 import { Card } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -20,7 +20,7 @@ export default async function HomePage() {
 
   return (
     <div className="page-shell py-5 sm:py-8 lg:py-10">
-      <ShortcutCard className="mb-4 lg:mb-6" />
+      <ShortcutBanner className="mb-4 lg:mb-6" />
 
       {/*
         One column on phones in a sensible order (situation, note, reports,
