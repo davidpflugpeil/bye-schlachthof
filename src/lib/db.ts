@@ -1,0 +1,514 @@
+import "server-only";
+
+import Database from "better-sqlite3";
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
+
+import type {
+  Duration,
+  LocationInfo,
+  OdorType,
+  Report,
+  ReportSource,
+  ReportStatus,
+  Severity,
+  Situation,
+  StreetStat,
+  Weather,
+} from "./types";
+
+/* ------------------------------------------------------------------ */
+/* Connection                                                          */
+/* ------------------------------------------------------------------ */
+
+const DEFAULT_PATH = path.join(process.cwd(), "data", "bye-schlachthof.db");
+/** File name used before the codebase was renamed to English. */
+const LEGACY_PATH = path.join(process.cwd(), "data", "geruchsmelder.db");
+
+function openConnection(): Database.Database {
+  const file = process.env.DATABASE_PATH?.trim() || DEFAULT_PATH;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+
+  // One-time move of the previously named file, so existing data is kept.
+  if (file === DEFAULT_PATH && !fs.existsSync(file) && fs.existsSync(LEGACY_PATH)) {
+    for (const suffix of ["", "-wal", "-shm"]) {
+      if (fs.existsSync(`${LEGACY_PATH}${suffix}`)) {
+        fs.renameSync(`${LEGACY_PATH}${suffix}`, `${file}${suffix}`);
+      }
+    }
+  }
+
+  const db = new Database(file);
+  db.pragma("journal_mode = WAL");
+  db.pragma("synchronous = NORMAL");
+  db.pragma("foreign_keys = ON");
+  createSchema(db);
+  migrateFromGermanSchema(db);
+  return db;
+}
+
+function createSchema(db: Database.Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS reports (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      public_id           TEXT NOT NULL UNIQUE,
+      reported_at         TEXT NOT NULL,
+      severity            INTEGER NOT NULL CHECK (severity BETWEEN 1 AND 5),
+      latitude            REAL,
+      longitude           REAL,
+      street              TEXT,
+      district            TEXT,
+      postal_code         TEXT,
+      city                TEXT,
+      odor_type           TEXT,
+      duration            TEXT,
+      comment             TEXT,
+      source              TEXT NOT NULL DEFAULT 'web',
+      reporter_hash       TEXT,
+      status              TEXT NOT NULL DEFAULT 'visible',
+      weather_status      TEXT NOT NULL DEFAULT 'pending',
+      wind_direction_deg  REAL,
+      wind_speed_kmh      REAL,
+      wind_gust_kmh       REAL,
+      temperature_c       REAL,
+      precipitation_mm    REAL,
+      pressure_hpa        REAL,
+      humidity_pct        REAL,
+      weather_fetched_at  TEXT,
+      created_at          TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_reports_time     ON reports (reported_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_reports_status   ON reports (status, reported_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_reports_reporter ON reports (reporter_hash, reported_at DESC);
+
+    CREATE TABLE IF NOT EXISTS location_cache (
+      cell         TEXT PRIMARY KEY,
+      street       TEXT,
+      district     TEXT,
+      postal_code  TEXT,
+      city         TEXT,
+      created_at   TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS idempotency_keys (
+      key         TEXT PRIMARY KEY,
+      report_id   INTEGER NOT NULL,
+      created_at  TEXT NOT NULL
+    );
+  `);
+}
+
+/**
+ * Copies rows from the previous German schema, translating enum values, then
+ * removes the old tables. Runs once; afterwards `meldungen` no longer exists.
+ */
+function migrateFromGermanSchema(db: Database.Database) {
+  const legacyExists = db
+    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'meldungen'`)
+    .get();
+  if (!legacyExists) return;
+
+  const migrate = db.transaction(() => {
+    db.exec(`
+      INSERT INTO reports (
+        public_id, reported_at, severity, latitude, longitude,
+        street, district, postal_code, city,
+        odor_type, duration, comment, source, reporter_hash, status, weather_status,
+        wind_direction_deg, wind_speed_kmh, wind_gust_kmh,
+        temperature_c, precipitation_mm, pressure_hpa, humidity_pct, weather_fetched_at
+      )
+      SELECT
+        oeffentliche_id, gemeldet_am, staerke, breitengrad, laengengrad,
+        strasse, stadtteil, plz, ort,
+        CASE geruchsart
+          WHEN 'faulig'     THEN 'rotten'
+          WHEN 'blut'       THEN 'blood'
+          WHEN 'guelle'     THEN 'manure'
+          WHEN 'verbrannt'  THEN 'burnt'
+          WHEN 'chemisch'   THEN 'chemical'
+          WHEN 'suesslich'  THEN 'sweet'
+          WHEN 'sonstiges'  THEN 'other'
+          ELSE NULL
+        END,
+        CASE dauer
+          WHEN 'kurz'           THEN 'short'
+          WHEN 'anhaltend'      THEN 'persistent'
+          WHEN 'wiederkehrend'  THEN 'recurring'
+          ELSE NULL
+        END,
+        kommentar,
+        CASE quelle WHEN 'kurzbefehl' THEN 'shortcut' ELSE 'web' END,
+        melder_hash,
+        CASE status WHEN 'verborgen' THEN 'hidden' ELSE 'visible' END,
+        CASE wetter_status WHEN 'offen' THEN 'pending' WHEN 'fehler' THEN 'failed' ELSE 'ok' END,
+        wind_richtung_grad, wind_geschwindigkeit, wind_boeen,
+        temperatur, niederschlag, luftdruck, luftfeuchte, wetter_abgerufen_am
+      FROM meldungen;
+
+      DROP TABLE meldungen;
+      DROP TABLE IF EXISTS ort_cache;
+      DROP TABLE IF EXISTS idempotenz;
+    `);
+  });
+
+  migrate();
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __byeSchlachthofDb: Database.Database | undefined;
+}
+
+export function db(): Database.Database {
+  if (!globalThis.__byeSchlachthofDb) {
+    globalThis.__byeSchlachthofDb = openConnection();
+  }
+  return globalThis.__byeSchlachthofDb;
+}
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                             */
+/* ------------------------------------------------------------------ */
+
+const ID_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
+
+export function newPublicId(): string {
+  const bytes = crypto.randomBytes(12);
+  let id = "";
+  for (const byte of bytes) id += ID_ALPHABET[byte % ID_ALPHABET.length];
+  return id;
+}
+
+type Row = Record<string, unknown>;
+
+function toReport(row: Row): Report {
+  return {
+    id: row.id as number,
+    publicId: row.public_id as string,
+    reportedAt: row.reported_at as string,
+    severity: row.severity as Severity,
+    latitude: (row.latitude as number) ?? null,
+    longitude: (row.longitude as number) ?? null,
+    street: (row.street as string) ?? null,
+    district: (row.district as string) ?? null,
+    postalCode: (row.postal_code as string) ?? null,
+    city: (row.city as string) ?? null,
+    odorType: (row.odor_type as OdorType) ?? null,
+    duration: (row.duration as Duration) ?? null,
+    comment: (row.comment as string) ?? null,
+    source: row.source as ReportSource,
+    status: row.status as ReportStatus,
+    weatherStatus: row.weather_status as Report["weatherStatus"],
+    windDirectionDeg: (row.wind_direction_deg as number) ?? null,
+    windSpeedKmh: (row.wind_speed_kmh as number) ?? null,
+    windGustKmh: (row.wind_gust_kmh as number) ?? null,
+    temperatureC: (row.temperature_c as number) ?? null,
+    precipitationMm: (row.precipitation_mm as number) ?? null,
+    pressureHpa: (row.pressure_hpa as number) ?? null,
+    humidityPct: (row.humidity_pct as number) ?? null,
+    weatherFetchedAt: (row.weather_fetched_at as string) ?? null,
+  };
+}
+
+function hoursAgo(hours: number): string {
+  return new Date(Date.now() - hours * 3600_000).toISOString();
+}
+
+/* ------------------------------------------------------------------ */
+/* Writes                                                             */
+/* ------------------------------------------------------------------ */
+
+export interface NewReport {
+  severity: Severity;
+  reportedAt?: string;
+  latitude: number | null;
+  longitude: number | null;
+  odorType: OdorType | null;
+  duration: Duration | null;
+  comment: string | null;
+  source: ReportSource;
+  reporterHash: string | null;
+}
+
+export function createReport(input: NewReport): Report {
+  const publicId = newPublicId();
+  const reportedAt = input.reportedAt ?? new Date().toISOString();
+
+  const info = db()
+    .prepare(
+      `INSERT INTO reports (
+         public_id, reported_at, severity, latitude, longitude,
+         odor_type, duration, comment, source, reporter_hash
+       ) VALUES (
+         @publicId, @reportedAt, @severity, @latitude, @longitude,
+         @odorType, @duration, @comment, @source, @reporterHash
+       )`,
+    )
+    .run({ ...input, publicId, reportedAt });
+
+  return reportById(Number(info.lastInsertRowid))!;
+}
+
+export function attachWeather(id: number, weather: Weather | null): void {
+  if (!weather) {
+    db().prepare(`UPDATE reports SET weather_status = 'failed' WHERE id = ?`).run(id);
+    return;
+  }
+
+  db()
+    .prepare(
+      `UPDATE reports SET
+         weather_status = 'ok',
+         wind_direction_deg = @windDirectionDeg,
+         wind_speed_kmh = @windSpeedKmh,
+         wind_gust_kmh = @windGustKmh,
+         temperature_c = @temperatureC,
+         precipitation_mm = @precipitationMm,
+         pressure_hpa = @pressureHpa,
+         humidity_pct = @humidityPct,
+         weather_fetched_at = @fetchedAt
+       WHERE id = @id`,
+    )
+    .run({ ...weather, id });
+}
+
+export function attachLocation(id: number, location: LocationInfo | null): void {
+  if (!location || (!location.street && !location.district)) return;
+
+  db()
+    .prepare(
+      `UPDATE reports SET
+         street = COALESCE(@street, street),
+         district = COALESCE(@district, district),
+         postal_code = COALESCE(@postalCode, postal_code),
+         city = COALESCE(@city, city)
+       WHERE id = @id`,
+    )
+    .run({ ...location, id });
+}
+
+export function setReportStatus(id: number, status: ReportStatus): void {
+  db().prepare(`UPDATE reports SET status = ? WHERE id = ?`).run(status, id);
+}
+
+export function deleteReport(id: number): void {
+  db().prepare(`DELETE FROM reports WHERE id = ?`).run(id);
+}
+
+/* ------------------------------------------------------------------ */
+/* Location cache                                                      */
+/* ------------------------------------------------------------------ */
+
+export function cachedLocation(cell: string): LocationInfo | null {
+  const row = db()
+    .prepare(
+      `SELECT street, district, postal_code AS postalCode, city
+       FROM location_cache WHERE cell = ?`,
+    )
+    .get(cell) as LocationInfo | undefined;
+  return row ?? null;
+}
+
+export function cacheLocation(cell: string, location: LocationInfo): void {
+  db()
+    .prepare(
+      `INSERT OR REPLACE INTO location_cache (cell, street, district, postal_code, city, created_at)
+       VALUES (@cell, @street, @district, @postalCode, @city, datetime('now'))`,
+    )
+    .run({ cell, ...location });
+}
+
+/* ------------------------------------------------------------------ */
+/* Reads                                                               */
+/* ------------------------------------------------------------------ */
+
+export function reportById(id: number): Report | null {
+  const row = db().prepare(`SELECT * FROM reports WHERE id = ?`).get(id) as Row | undefined;
+  return row ? toReport(row) : null;
+}
+
+export function reportByPublicId(publicId: string): Report | null {
+  const row = db().prepare(`SELECT * FROM reports WHERE public_id = ?`).get(publicId) as
+    | Row
+    | undefined;
+  return row ? toReport(row) : null;
+}
+
+export function recentReports(limit = 20): Report[] {
+  const rows = db()
+    .prepare(
+      `SELECT * FROM reports
+       WHERE status = 'visible'
+       ORDER BY reported_at DESC
+       LIMIT ?`,
+    )
+    .all(limit) as Row[];
+  return rows.map(toReport);
+}
+
+/** Visible reports from the last N hours, newest first. */
+export function recentReportsSince(hours: number, limit: number): Report[] {
+  const rows = db()
+    .prepare(
+      `SELECT * FROM reports
+       WHERE status = 'visible' AND reported_at >= ?
+       ORDER BY reported_at DESC
+       LIMIT ?`,
+    )
+    .all(hoursAgo(hours), limit) as Row[];
+  return rows.map(toReport);
+}
+
+export function allReportsForAdmin(limit = 200, offset = 0): Report[] {
+  const rows = db()
+    .prepare(`SELECT * FROM reports ORDER BY reported_at DESC LIMIT ? OFFSET ?`)
+    .all(limit, offset) as Row[];
+  return rows.map(toReport);
+}
+
+export function totalReportCount(): number {
+  const row = db().prepare(`SELECT COUNT(*) AS n FROM reports`).get() as { n: number };
+  return row.n;
+}
+
+export function hiddenReportCount(): number {
+  const row = db()
+    .prepare(`SELECT COUNT(*) AS n FROM reports WHERE status = 'hidden'`)
+    .get() as { n: number };
+  return row.n;
+}
+
+export function currentSituation(): Situation {
+  const connection = db();
+
+  const window = (hours: number) =>
+    connection
+      .prepare(
+        `SELECT COUNT(*) AS count, AVG(severity) AS average, MAX(severity) AS maximum
+         FROM reports
+         WHERE status = 'visible' AND reported_at >= ?`,
+      )
+      .get(hoursAgo(hours)) as {
+      count: number;
+      average: number | null;
+      maximum: number | null;
+    };
+
+  const last2h = window(2);
+  const last24h = window(24);
+  const last7d = window(24 * 7);
+
+  const latest = connection
+    .prepare(`SELECT * FROM reports WHERE status = 'visible' ORDER BY reported_at DESC LIMIT 1`)
+    .get() as Row | undefined;
+
+  const streets = connection
+    .prepare(
+      `SELECT street, COUNT(*) AS count
+       FROM reports
+       WHERE status = 'visible' AND reported_at >= ? AND street IS NOT NULL
+       GROUP BY street
+       ORDER BY count DESC
+       LIMIT 5`,
+    )
+    .all(hoursAgo(6)) as { street: string }[];
+
+  // Most recent weather reading, at most three hours old.
+  const weatherRow = connection
+    .prepare(
+      `SELECT wind_direction_deg, wind_speed_kmh, precipitation_mm, temperature_c
+       FROM reports
+       WHERE weather_status = 'ok' AND reported_at >= ?
+       ORDER BY reported_at DESC LIMIT 1`,
+    )
+    .get(hoursAgo(3)) as
+    | {
+        wind_direction_deg: number | null;
+        wind_speed_kmh: number | null;
+        precipitation_mm: number | null;
+        temperature_c: number | null;
+      }
+    | undefined;
+
+  return {
+    reports2h: last2h.count,
+    reports24h: last24h.count,
+    reports7d: last7d.count,
+    averageSeverity2h: last2h.average,
+    averageSeverity24h: last24h.average,
+    maxSeverity2h: (last2h.maximum as Severity) ?? null,
+    lastReportAt: latest ? (latest.reported_at as string) : null,
+    activeStreets: streets.map((s) => s.street),
+    weather: weatherRow
+      ? {
+          windDirectionDeg: weatherRow.wind_direction_deg,
+          windSpeedKmh: weatherRow.wind_speed_kmh,
+          precipitationMm: weatherRow.precipitation_mm,
+          temperatureC: weatherRow.temperature_c,
+        }
+      : null,
+  };
+}
+
+export function streetStats(sinceIso: string, limit = 8): StreetStat[] {
+  const rows = db()
+    .prepare(
+      `SELECT street,
+              COUNT(*) AS count,
+              AVG(severity) AS average,
+              MAX(reported_at) AS latest
+       FROM reports
+       WHERE status = 'visible' AND reported_at >= ? AND street IS NOT NULL
+       GROUP BY street
+       ORDER BY count DESC, latest DESC
+       LIMIT ?`,
+    )
+    .all(sinceIso, limit) as {
+    street: string;
+    count: number;
+    average: number;
+    latest: string;
+  }[];
+
+  return rows.map((row) => ({
+    street: row.street,
+    count: row.count,
+    averageSeverity: row.average,
+    lastReportAt: row.latest,
+  }));
+}
+
+/** Number of reports from the same sender inside the given window. */
+export function reportCountFromReporter(reporterHash: string, minutes: number): number {
+  const row = db()
+    .prepare(`SELECT COUNT(*) AS n FROM reports WHERE reporter_hash = ? AND reported_at >= ?`)
+    .get(reporterHash, new Date(Date.now() - minutes * 60_000).toISOString()) as { n: number };
+  return row.n;
+}
+
+/* ------------------------------------------------------------------ */
+/* Idempotency                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Repeated requests carrying the same key must not create a second report —
+ * important when a shortcut retries on a flaky connection.
+ */
+export function reportForIdempotencyKey(key: string): Report | null {
+  const row = db()
+    .prepare(`SELECT report_id FROM idempotency_keys WHERE key = ?`)
+    .get(key) as { report_id: number } | undefined;
+  if (!row) return null;
+  return reportById(row.report_id);
+}
+
+export function rememberIdempotencyKey(key: string, reportId: number): void {
+  db()
+    .prepare(
+      `INSERT OR IGNORE INTO idempotency_keys (key, report_id, created_at)
+       VALUES (?, ?, datetime('now'))`,
+    )
+    .run(key, reportId);
+}

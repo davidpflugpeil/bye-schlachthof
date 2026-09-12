@@ -1,0 +1,221 @@
+@import "tailwindcss";
+
+/* =========================================================================
+   Design tokens
+   ========================================================================= */
+@theme {
+  /* Surfaces */
+  --color-canvas: #f5f4ef;
+  --color-canvas-deep: #eceae2;
+  --color-surface: #ffffff;
+  --color-surface-muted: #fbfaf7;
+  --color-surface-sunken: #f1efe8;
+  --color-line: #e5e2d9;
+  --color-line-strong: #d3cfc3;
+
+  /* Text */
+  --color-ink: #16211f;
+  --color-ink-soft: #525d59;
+  --color-ink-faint: #6f7a75;
+
+  /* Brand */
+  --color-brand: #0f5a52;
+  --color-brand-deep: #0a4139;
+  --color-brand-hover: #0c4a43;
+  --color-brand-soft: #e2eeeb;
+  --color-brand-tint: #f0f7f5;
+
+  /* Environmental accents */
+  --color-sage: #7e9c8c;
+  --color-sky: #3f6e86;
+  --color-sky-soft: #e6eef2;
+  --color-sand: #e9e0ce;
+  --color-sand-soft: #f6f1e6;
+
+  /* Signals */
+  --color-positive: #2f6f57;
+  --color-warn: #a9591f;
+  --color-danger: #9b3d2a;
+
+  /* Severity 1–5: muted earth tones, always paired with a number and a label */
+  --color-sev-1: #5b7a6b;
+  --color-sev-2: #8a6b24;
+  --color-sev-3: #a9591f;
+  --color-sev-4: #9b3d2a;
+  --color-sev-5: #7e2b26;
+  --color-sev-1-soft: #e7eee9;
+  --color-sev-2-soft: #f4ead4;
+  --color-sev-3-soft: #f8e3d1;
+  --color-sev-4-soft: #f7ded6;
+  --color-sev-5-soft: #f3d6d3;
+
+  /* Radii */
+  --radius-sm: 0.625rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.125rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 1.875rem;
+  --radius-3xl: 2.25rem;
+
+  /* Shadows, deliberately restrained */
+  --shadow-soft: 0 1px 2px rgba(22, 33, 31, 0.04), 0 1px 3px rgba(22, 33, 31, 0.03);
+  --shadow-card: 0 1px 2px rgba(22, 33, 31, 0.04), 0 6px 18px -8px rgba(22, 33, 31, 0.12);
+  --shadow-lifted: 0 2px 4px rgba(22, 33, 31, 0.04), 0 18px 40px -18px rgba(22, 33, 31, 0.28);
+  --shadow-sheet: 0 -8px 40px -12px rgba(22, 33, 31, 0.22);
+
+  /* Typography */
+  --font-sans: var(--font-brand), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --text-hero: 2.125rem;
+  --text-hero--line-height: 1.1;
+  --text-hero--letter-spacing: -0.022em;
+
+  /* Motion */
+  --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* =========================================================================
+   Base
+   ========================================================================= */
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4 {
+    letter-spacing: -0.018em;
+    line-height: 1.18;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  button, [role="button"], a, input, select, textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background: var(--color-brand-soft);
+    color: var(--color-brand-deep);
+  }
+
+  input, textarea, select {
+    font: inherit;
+    color: inherit;
+  }
+
+}
+
+/* =========================================================================
+   Utilities
+   ========================================================================= */
+@utility page-shell {
+  width: 100%;
+  margin-inline: auto;
+  max-width: 78rem;
+  padding-inline: 1.125rem;
+  @media (min-width: 640px) {
+    padding-inline: 1.75rem;
+  }
+  @media (min-width: 1024px) {
+    padding-inline: 2.5rem;
+  }
+}
+
+@utility safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* =========================================================================
+   Animations
+   ========================================================================= */
+@keyframes rise-in {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sheet-up {
+  from { transform: translate3d(0, 100%, 0); }
+  to { transform: none; }
+}
+
+@keyframes draw-check {
+  from { stroke-dashoffset: 32; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes draw-circle {
+  from { stroke-dashoffset: 166; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes soft-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.15; transform: scale(1.35); }
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+
+@utility animate-rise-in {
+  animation: rise-in 0.45s var(--ease-out-soft) both;
+}
+
+@utility animate-fade-in {
+  animation: fade-in 0.3s var(--ease-soft) both;
+}
+
+@utility skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-sunken) 25%,
+    #e9e6dd 37%,
+    var(--color-surface-sunken) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
