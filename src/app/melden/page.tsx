@@ -76,13 +76,13 @@ export default async function ReportPage() {
               <div>
                 <h2 className="text-base font-bold text-ink">Noch schneller melden</h2>
                 <p className="mt-1 text-[0.9375rem] leading-relaxed text-ink-soft">
-                  Mit dem iPhone-Kurzbefehl geht eine Meldung direkt vom Homescreen.
+                  Mit dem iPhone-Shortcut geht eine Meldung direkt vom Homescreen.
                 </p>
                 <Link
                   href="/kurzbefehl"
                   className="mt-2.5 inline-flex items-center gap-1.5 text-[0.9375rem] font-semibold text-brand transition-colors hover:text-brand-hover"
                 >
-                  Kurzbefehl einrichten
+                  Shortcut einrichten
                   <ArrowRight className="size-4" aria-hidden />
                 </Link>
               </div>

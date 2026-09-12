@@ -20,10 +20,12 @@ export default async function HomePage() {
 
   return (
     <div className="page-shell py-5 sm:py-8 lg:py-10">
+      <ShortcutCard className="mb-4 lg:mb-6" />
+
       {/*
         One column on phones in a sensible order (situation, note, reports,
-        shortcut, streets). Two columns from large widths up — the two wrappers
-        collapse via `contents` and turn back into blocks.
+        streets). Two columns from large widths up — the two wrappers collapse
+        via `contents` and turn back into blocks.
       */}
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start lg:gap-6">
         {/* Main column: what is being reported right now */}
@@ -72,8 +74,6 @@ export default async function HomePage() {
               sichtbar ist nur die Straße, niemals deine Hausnummer.
             </span>
           </p>
-
-          <ShortcutCard className="order-4" />
 
           <StreetRanking streets={streets} period="Letzte 7 Tage" className="order-5" />
         </div>

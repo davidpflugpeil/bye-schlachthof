@@ -8,7 +8,7 @@ export interface NavItem {
 export const MAIN_NAVIGATION: NavItem[] = [
   { href: "/", label: "Aktuelle Lage" },
   { href: "/ueber", label: "Über das Projekt" },
-  { href: "/kurzbefehl", label: "iPhone-Kurzbefehl" },
+  { href: "/kurzbefehl", label: "iPhone-Shortcut" },
 ];
 
 export const PROJECT_NAME = "Bye Schlachthof";

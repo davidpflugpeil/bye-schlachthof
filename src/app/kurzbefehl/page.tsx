@@ -5,16 +5,16 @@ import { Card } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "iPhone-Kurzbefehl",
+  title: "iPhone-Shortcut",
   description:
-    "Mit dem iPhone-Kurzbefehl kannst du eine Meldung in wenigen Sekunden senden – direkt vom Homescreen.",
+    "Mit dem iPhone-Shortcut kannst du eine Meldung in wenigen Sekunden senden – direkt vom Homescreen.",
 };
 
 const SETUP_STEPS = [
   {
     icon: <Smartphone className="size-5" aria-hidden />,
-    title: "Kurzbefehl hinzufügen",
-    text: "Tippe auf den Knopf oben. Die App „Kurzbefehle“ öffnet sich und fragt, ob du den Kurzbefehl hinzufügen möchtest.",
+    title: "Shortcut hinzufügen",
+    text: "Tippe auf den Knopf oben. Die App „Kurzbefehle“ öffnet sich und fragt, ob du den Shortcut hinzufügen möchtest.",
   },
   {
     icon: <Crosshair className="size-5" aria-hidden />,
@@ -52,14 +52,14 @@ export default function ShortcutPage() {
             Geruch mit einem Fingertipp melden
           </h1>
           <p className="mt-4 text-[1.0625rem] leading-relaxed text-ink-soft sm:text-lg">
-            Mit dem iPhone-Kurzbefehl kannst du eine Meldung in wenigen Sekunden senden – direkt vom
+            Mit dem iPhone-Shortcut kannst du eine Meldung in wenigen Sekunden senden – direkt vom
             Homescreen, ohne die Website zu öffnen.
           </p>
 
           <div className="mt-6">
             <ButtonLink href={SHORTCUT_URL} size="xl" target="_blank" rel="noopener noreferrer">
               <Sparkles className="size-5" aria-hidden />
-              Kurzbefehl installieren
+              Shortcut installieren
             </ButtonLink>
             <p className="mt-3 text-sm text-ink-soft">
               Öffnet die App „Kurzbefehle“ auf iPhone und iPad.
@@ -94,7 +94,7 @@ export default function ShortcutPage() {
               id="video-beschreibung"
               className="mt-3 text-sm leading-relaxed text-ink-soft"
             >
-              Ohne Ton, gut zwanzig Sekunden: Kurzbefehl installieren, auf den Homescreen legen
+              Ohne Ton, gut zwanzig Sekunden: Shortcut installieren, auf den Homescreen legen
               und eine Meldung abgeben.
             </figcaption>
           </figure>
@@ -132,7 +132,7 @@ export default function ShortcutPage() {
       <section className="mt-12">
         <Card tone="brand" className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-bold text-ink">Lieber ohne Kurzbefehl?</h2>
+            <h2 className="text-lg font-bold text-ink">Lieber ohne Shortcut?</h2>
             <p className="mt-1 text-[0.9375rem] leading-relaxed text-ink-soft">
               Über die Website geht es genauso schnell – und ganz ohne Einrichtung.
             </p>

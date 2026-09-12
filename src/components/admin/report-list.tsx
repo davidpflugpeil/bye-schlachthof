@@ -135,7 +135,7 @@ export function ReportList({ reports }: { reports: Report[] }) {
                   </td>
                   <td className="px-4 py-3 align-top">
                     <span className="rounded-full bg-surface-sunken px-2.5 py-1 text-sm text-ink-soft">
-                      {report.source === "shortcut" ? "Kurzbefehl" : "Website"}
+                      {report.source === "shortcut" ? "Shortcut" : "Website"}
                     </span>
                     {hidden && (
                       <span className="mt-1 block text-sm font-semibold text-danger">verborgen</span>
@@ -208,7 +208,7 @@ export function ReportList({ reports }: { reports: Report[] }) {
                       .join(" · ") || "Ort unbekannt"}
                   </p>
                   <p className="text-sm text-ink-soft">
-                    {report.source === "shortcut" ? "Kurzbefehl" : "Website"}
+                    {report.source === "shortcut" ? "Shortcut" : "Website"}
                   </p>
                   {hidden && <p className="mt-1 text-sm font-semibold text-danger">verborgen</p>}
                 </div>
