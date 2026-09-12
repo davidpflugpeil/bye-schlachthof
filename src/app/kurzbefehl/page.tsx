@@ -76,28 +76,18 @@ export default function ShortcutPage() {
             Einrichtung im Video
           </h2>
 
-          <figure className="mt-3">
-            <video
-              className="h-auto w-full max-w-[17rem] rounded-[1.75rem] border border-line bg-surface-muted shadow-sm"
-              src="/kurzbefehl.mp4"
-              poster="/kurzbefehl-poster.jpg"
-              width={600}
-              height={1304}
-              autoPlay
-              loop
-              muted
-              playsInline
-              controls
-              aria-describedby="video-beschreibung"
-            />
-            <figcaption
-              id="video-beschreibung"
-              className="mt-3 text-sm leading-relaxed text-ink-soft"
-            >
-              Ohne Ton, gut zwanzig Sekunden: Shortcut installieren, auf den Homescreen legen
-              und eine Meldung abgeben.
-            </figcaption>
-          </figure>
+          <video
+            className="mt-3 h-auto w-full max-w-[17rem] rounded-[1.75rem] border border-line bg-surface-muted shadow-sm"
+            src="/kurzbefehl.mp4"
+            poster="/kurzbefehl-poster.jpg"
+            width={600}
+            height={1304}
+            autoPlay
+            loop
+            muted
+            playsInline
+            controls
+          />
         </section>
 
         {/* Setup steps */}
