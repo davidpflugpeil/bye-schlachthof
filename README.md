@@ -30,6 +30,7 @@ The app then runs on <http://localhost:3000>.
 | `npm run start` | Production server |
 | `npm run seed` | 14 days of test data (`npm run seed -- 30` for 30 days) |
 | `npm run icons` | Regenerate all icon sizes from `assets/coat-of-arms.png` |
+| `npm run map` | Rebuild the static base map of the analytics page (requires Pillow) |
 | `npm run api:check` | Exercise every API endpoint |
 
 ---
@@ -83,6 +84,13 @@ sizes are derived from it with `npm run icons` (requires Pillow). The script
 makes the white margin outside the shield transparent, crops to the artwork and
 writes `public/coat-of-arms-header.png`, `icon-32/64/192/512.png`,
 `apple-icon.png` and a maskable icon with a safe area for Android.
+
+**Analytics map:** `/auswertung` draws the reports on a static map of the
+quarter, gathered into 200 m fields; publicly a field appears only from three
+reports on. The base map in `public/karte/` is built once from OpenStreetMap
+tiles by `npm run map` (frame in `src/lib/map-frame.json`) and served by the app
+itself, so visitors' browsers never contact a tile server. Map data
+© OpenStreetMap contributors (ODbL), tile cartography CC BY-SA 2.0.
 
 **External services:** Open-Meteo (weather) and Nominatim/OpenStreetMap (address
 search plus street and district for a coordinate). Both are used without a key;

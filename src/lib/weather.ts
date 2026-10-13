@@ -1,6 +1,8 @@
 import "server-only";
 
-import type { Weather } from "./types";
+import { TIMEZONE } from "./format";
+import { SLAUGHTERHOUSE } from "./geo";
+import type { Weather, WindHour } from "./types";
 
 interface OpenMeteoResponse {
   current?: {
@@ -59,6 +61,97 @@ export async function fetchWeather(lat: number, lon: number): Promise<Weather | 
       humidityPct: current.relative_humidity_2m ?? null,
       fetchedAt: new Date().toISOString(),
     };
+  } catch {
+    return null;
+  }
+}
+
+interface OpenMeteoHistory {
+  hourly?: {
+    time?: string[];
+    wind_speed_10m?: (number | null)[];
+    wind_direction_10m?: (number | null)[];
+  };
+}
+
+/** The past does not change, so a fetched range is reused for a few hours. */
+const HISTORY_TTL_MS = 3 * 3600_000;
+const historyCache = new Map<string, { expires: number; hours: WindHour[] }>();
+
+const localHourFormat = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  hourCycle: "h23",
+});
+
+/** "YYYY-MM-DDTHH:00" in Munich time — the format Open-Meteo uses for hours. */
+function localHourKey(moment: Date): string {
+  const parts = Object.fromEntries(
+    localHourFormat.formatToParts(moment).map((part) => [part.type, part.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:00`;
+}
+
+/**
+ * Hourly wind at the slaughterhouse between two Munich days (both inclusive),
+ * up to the current hour. It is the baseline the analytics page compares the
+ * reports against: how often did the wind blow this way at all? Returns null
+ * on failure — the page then shows the reports without the comparison.
+ */
+export async function fetchWindHistory(
+  startDay: string,
+  endDay: string,
+  now: Date = new Date(),
+): Promise<WindHour[] | null> {
+  const key = `${startDay}:${endDay}`;
+  const cutoff = localHourKey(now);
+  const cached = historyCache.get(key);
+  if (cached && cached.expires > now.getTime()) {
+    return cached.hours.filter((hour) => hour.time <= cutoff);
+  }
+
+  try {
+    // The historical forecast archive serves the same models as the live
+    // forecast used for each report, back to 2022 and up to today.
+    const url = new URL("https://historical-forecast-api.open-meteo.com/v1/forecast");
+    url.searchParams.set("latitude", SLAUGHTERHOUSE.lat.toFixed(4));
+    url.searchParams.set("longitude", SLAUGHTERHOUSE.lon.toFixed(4));
+    url.searchParams.set("start_date", startDay);
+    url.searchParams.set("end_date", endDay);
+    url.searchParams.set("hourly", "wind_speed_10m,wind_direction_10m");
+    url.searchParams.set("wind_speed_unit", "kmh");
+    url.searchParams.set("timezone", TIMEZONE);
+
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(4000),
+      next: { revalidate: HISTORY_TTL_MS / 1000 },
+    });
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as OpenMeteoHistory;
+    const times = data.hourly?.time ?? [];
+    const speeds = data.hourly?.wind_speed_10m ?? [];
+    const directions = data.hourly?.wind_direction_10m ?? [];
+
+    const hours: WindHour[] = [];
+    times.forEach((time, index) => {
+      const speedKmh = speeds[index];
+      const directionDeg = directions[index];
+      if (typeof speedKmh === "number" && typeof directionDeg === "number") {
+        hours.push({ time, directionDeg, speedKmh });
+      }
+    });
+    if (hours.length === 0) return null;
+
+    for (const [entry, value] of historyCache) {
+      if (value.expires <= now.getTime()) historyCache.delete(entry);
+    }
+    historyCache.set(key, { expires: now.getTime() + HISTORY_TTL_MS, hours });
+
+    return hours.filter((hour) => hour.time <= cutoff);
   } catch {
     return null;
   }

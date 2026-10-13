@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, LogOut } from "lucide-react";
+import { BarChart3, Download, LogOut } from "lucide-react";
 
 import { isSignedIn, adminEnabled } from "@/lib/admin-auth";
 import { signOut } from "./actions";
@@ -64,6 +64,10 @@ export default async function AdminSeite() {
         </div>
 
         <div className="flex flex-wrap gap-2.5">
+          <Link href="/auswertung" className={buttonClasses({ variant: "secondary", size: "md" })}>
+            <BarChart3 className="size-4" aria-hidden />
+            Auswertung
+          </Link>
           <Link href="/admin/export" className={buttonClasses({ variant: "secondary", size: "md" })}>
             <Download className="size-4" aria-hidden />
             CSV herunterladen

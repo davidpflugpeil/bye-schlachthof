@@ -197,7 +197,7 @@ function dayDistance(a: Date, b: Date): number {
 }
 
 /** Date as YYYY-MM-DD in Munich time — needed to compare calendar days. */
-function dayKey(iso: string | Date): string {
+export function dayKey(iso: string | Date): string {
   return new Intl.DateTimeFormat("en-CA", {
     year: "numeric",
     month: "2-digit",

@@ -5,6 +5,13 @@ import type { LocationInfo } from "./types";
 
 export const MUNICH_CENTER = { lat: 48.1372, lon: 11.5755 };
 
+/**
+ * The slaughterhouse building at Zenettistraße 10, as mapped in OpenStreetMap.
+ * Reference point for the analytics question "did the wind blow from the
+ * slaughterhouse towards the person reporting?".
+ */
+export const SLAUGHTERHOUSE = { lat: 48.12434, lon: 11.5587 };
+
 /** Rough frame around Munich — used only as a plausibility check. */
 const FRAME = { latMin: 47.7, latMax: 48.6, lonMin: 10.9, lonMax: 12.2 };
 

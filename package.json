@@ -9,6 +9,7 @@
     "lint": "next lint",
     "seed": "node scripts/seed.mjs",
     "icons": "python3 scripts/generate-icons.py",
+    "map": "python3 scripts/fetch-map.py",
     "api:check": "./scripts/check-api.sh",
     "db:migrate-sqlite": "node scripts/migrate-sqlite-to-postgres.mjs"
   },

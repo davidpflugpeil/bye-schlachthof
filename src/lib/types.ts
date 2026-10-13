@@ -101,3 +101,41 @@ export interface StreetStat {
   averageSeverity: number;
   lastReportAt: string;
 }
+
+/**
+ * One visible report, reduced to what the analytics page aggregates. Time
+ * fields are already converted to Munich time by the database.
+ */
+export interface AnalyticsRow {
+  reportedAt: string;
+  /** Munich calendar day, YYYY-MM-DD. */
+  day: string;
+  /** Hour of day in Munich, 0–23. */
+  hour: number;
+  /** ISO weekday: 1 = Monday … 7 = Sunday. */
+  weekday: number;
+  severity: Severity;
+  street: string | null;
+  /** Server-side only — feeds the wind analysis, never rendered. */
+  latitude: number | null;
+  longitude: number | null;
+  odorType: OdorType | null;
+  duration: Duration | null;
+  hasComment: boolean;
+  source: ReportSource;
+  /** Server-side only — counted for the admin view, never rendered. */
+  reporterHash: string | null;
+  weatherStatus: WeatherStatus;
+  windDirectionDeg: number | null;
+  windSpeedKmh: number | null;
+  precipitationMm: number | null;
+  temperatureC: number | null;
+}
+
+/** One hour of modelled wind at the slaughterhouse — the comparison baseline. */
+export interface WindHour {
+  /** Local Munich time, "YYYY-MM-DDTHH:00". */
+  time: string;
+  directionDeg: number;
+  speedKmh: number;
+}

@@ -2,7 +2,9 @@ import "server-only";
 
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
+import { TIMEZONE } from "./format";
 import type {
+  AnalyticsRow,
   Duration,
   LocationInfo,
   OdorType,
@@ -13,6 +15,7 @@ import type {
   Situation,
   StreetStat,
   Weather,
+  WeatherStatus,
 } from "./types";
 
 /* ------------------------------------------------------------------ */
@@ -561,6 +564,74 @@ export async function streetStats(since: string | Date, limit = 8): Promise<Stre
     averageSeverity: Number(row.average),
     lastReportAt: isoOrNull(row.latest)!,
   }));
+}
+
+/* ------------------------------------------------------------------ */
+/* Analytics                                                           */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Days are Munich calendar days (YYYY-MM-DD). `$n::date::timestamp AT TIME ZONE
+ * zone` turns one into the instant that day starts, so daylight saving time is
+ * handled by Postgres rather than by an offset guessed in JavaScript.
+ */
+
+/** Visible reports from the start of the given Munich day until now, oldest first. */
+export async function analyticsRows(startDay: string): Promise<AnalyticsRow[]> {
+  const result = await query<Row>(
+    `SELECT reported_at,
+            to_char(reported_at AT TIME ZONE $2, 'YYYY-MM-DD') AS day,
+            EXTRACT(HOUR FROM reported_at AT TIME ZONE $2)::int AS hour,
+            EXTRACT(ISODOW FROM reported_at AT TIME ZONE $2)::int AS weekday,
+            severity, street, latitude, longitude, odor_type, duration,
+            comment IS NOT NULL AS has_comment, source, reporter_hash, weather_status,
+            wind_direction_deg, wind_speed_kmh, precipitation_mm, temperature_c
+     FROM reports
+     WHERE status = 'visible' AND reported_at >= ($1::date::timestamp AT TIME ZONE $2)
+     ORDER BY reported_at`,
+    [startDay, TIMEZONE],
+  );
+
+  return result.rows.map((row) => ({
+    reportedAt: isoOrNull(row.reported_at)!,
+    day: row.day as string,
+    hour: Number(row.hour),
+    weekday: Number(row.weekday),
+    severity: Number(row.severity) as Severity,
+    street: (row.street as string) ?? null,
+    latitude: numberOrNull(row.latitude),
+    longitude: numberOrNull(row.longitude),
+    odorType: (row.odor_type as OdorType) ?? null,
+    duration: (row.duration as Duration) ?? null,
+    hasComment: Boolean(row.has_comment),
+    source: row.source as ReportSource,
+    reporterHash: (row.reporter_hash as string) ?? null,
+    weatherStatus: row.weather_status as WeatherStatus,
+    windDirectionDeg: numberOrNull(row.wind_direction_deg),
+    windSpeedKmh: numberOrNull(row.wind_speed_kmh),
+    precipitationMm: numberOrNull(row.precipitation_mm),
+    temperatureC: numberOrNull(row.temperature_c),
+  }));
+}
+
+/** Munich calendar day of the first visible report, or null without reports. */
+export async function firstReportDay(): Promise<string | null> {
+  const result = await query<Row>(
+    `SELECT to_char(MIN(reported_at) AT TIME ZONE $1, 'YYYY-MM-DD') AS day
+     FROM reports WHERE status = 'visible'`,
+    [TIMEZONE],
+  );
+  return (result.rows[0]?.day as string) ?? null;
+}
+
+/** Hidden reports since the start of the given Munich day — for the admin view. */
+export async function hiddenReportCountSince(startDay: string): Promise<number> {
+  const result = await query<Row>(
+    `SELECT COUNT(*) AS n FROM reports
+     WHERE status = 'hidden' AND reported_at >= ($1::date::timestamp AT TIME ZONE $2)`,
+    [startDay, TIMEZONE],
+  );
+  return Number(result.rows[0].n);
 }
 
 /** Number of reports from the same sender inside the given window. */

@@ -7,6 +7,7 @@ export interface NavItem {
 /** Page URLs stay German — they are part of the user-facing content. */
 export const MAIN_NAVIGATION: NavItem[] = [
   { href: "/", label: "Aktuelle Lage" },
+  { href: "/auswertung", label: "Auswertung" },
   { href: "/ueber", label: "Über das Projekt" },
   { href: "/kurzbefehl", label: "iPhone-Shortcut" },
 ];

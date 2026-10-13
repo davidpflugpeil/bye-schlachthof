@@ -42,7 +42,9 @@ export default function PrivacyPage() {
               Öffentlich sichtbar sind Zeitpunkt, Stärke, die Straße, der Stadtteil und die
               Wetterangaben. Die Hausnummer wird gespeichert, aber nie veröffentlicht: Sie ist
               ausschließlich im internen Verwaltungsbereich und im dortigen Export sichtbar, ebenso
-              wie die genauen Koordinaten.
+              wie die genauen Koordinaten. Die Auswertung zeigt die Meldungen zusätzlich auf einer
+              Karte, zusammengefasst zu Feldern von etwa 200 × 200 Metern; ein Feld erscheint dort
+              erst ab drei Meldungen.
             </p>
           </Section>
 
