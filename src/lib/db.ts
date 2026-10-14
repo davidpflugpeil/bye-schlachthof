@@ -134,11 +134,31 @@ const SCHEMA = `
   );
 
   -- CREATE TABLE IF NOT EXISTS leaves an existing table untouched, so columns
-  -- added later need their own statement.
-  ALTER TABLE reports        ADD COLUMN IF NOT EXISTS house_number TEXT;
-  ALTER TABLE location_cache ADD COLUMN IF NOT EXISTS house_number TEXT;
-  ALTER TABLE location_cache ADD COLUMN IF NOT EXISTS source_lat   DOUBLE PRECISION;
-  ALTER TABLE location_cache ADD COLUMN IF NOT EXISTS source_lon   DOUBLE PRECISION;
+  -- added later need their own statement. ALTER TABLE locks the whole table
+  -- even when the column already exists, and this runs on every cold start —
+  -- so it is only issued for a column that is actually missing.
+  DO $$
+  DECLARE
+    missing RECORD;
+  BEGIN
+    FOR missing IN
+      SELECT wanted.tbl, wanted.col, wanted.typ
+      FROM (VALUES
+        ('reports',        'house_number', 'TEXT'),
+        ('location_cache', 'house_number', 'TEXT'),
+        ('location_cache', 'source_lat',   'DOUBLE PRECISION'),
+        ('location_cache', 'source_lon',   'DOUBLE PRECISION')
+      ) AS wanted (tbl, col, typ)
+      WHERE NOT EXISTS (
+        SELECT 1 FROM information_schema.columns existing
+        WHERE existing.table_schema = current_schema()
+          AND existing.table_name = wanted.tbl
+          AND existing.column_name = wanted.col
+      )
+    LOOP
+      EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS %I %s', missing.tbl, missing.col, missing.typ);
+    END LOOP;
+  END $$;
 `;
 
 /** Runs once per process; later calls await the same promise. */
@@ -477,51 +497,52 @@ export async function hiddenReportCount(): Promise<number> {
 }
 
 export async function currentSituation(): Promise<Situation> {
-  // One round trip instead of six — matters on serverless.
-  const result = await query<Row>(
-    `WITH windows AS (
+  // Two queries side by side instead of six in a row — matters on serverless.
+  const [result, streets] = await Promise.all([
+    query<Row>(
+      `WITH windows AS (
+         SELECT
+           COUNT(*) FILTER (WHERE reported_at >= $1) AS count_2h,
+           AVG(severity) FILTER (WHERE reported_at >= $1) AS avg_2h,
+           MAX(severity) FILTER (WHERE reported_at >= $1) AS max_2h,
+           COUNT(*) FILTER (WHERE reported_at >= $2) AS count_24h,
+           AVG(severity) FILTER (WHERE reported_at >= $2) AS avg_24h,
+           COUNT(*) FILTER (WHERE reported_at >= $3) AS count_7d
+         FROM reports
+         WHERE status = 'visible' AND reported_at >= $3
+       ),
+       latest AS (
+         SELECT reported_at FROM reports
+         WHERE status = 'visible' ORDER BY reported_at DESC LIMIT 1
+       ),
+       weather AS (
+         SELECT wind_direction_deg, wind_speed_kmh, precipitation_mm, temperature_c
+         FROM reports
+         WHERE weather_status = 'ok' AND reported_at >= $4
+         ORDER BY reported_at DESC LIMIT 1
+       )
        SELECT
-         COUNT(*) FILTER (WHERE reported_at >= $1) AS count_2h,
-         AVG(severity) FILTER (WHERE reported_at >= $1) AS avg_2h,
-         MAX(severity) FILTER (WHERE reported_at >= $1) AS max_2h,
-         COUNT(*) FILTER (WHERE reported_at >= $2) AS count_24h,
-         AVG(severity) FILTER (WHERE reported_at >= $2) AS avg_24h,
-         COUNT(*) FILTER (WHERE reported_at >= $3) AS count_7d
-       FROM reports
-       WHERE status = 'visible' AND reported_at >= $3
-     ),
-     latest AS (
-       SELECT reported_at FROM reports
-       WHERE status = 'visible' ORDER BY reported_at DESC LIMIT 1
-     ),
-     weather AS (
-       SELECT wind_direction_deg, wind_speed_kmh, precipitation_mm, temperature_c
-       FROM reports
-       WHERE weather_status = 'ok' AND reported_at >= $4
-       ORDER BY reported_at DESC LIMIT 1
-     )
-     SELECT
-       windows.*,
-       (SELECT reported_at FROM latest) AS last_report_at,
-       (SELECT wind_direction_deg FROM weather) AS w_dir,
-       (SELECT wind_speed_kmh FROM weather) AS w_speed,
-       (SELECT precipitation_mm FROM weather) AS w_precip,
-       (SELECT temperature_c FROM weather) AS w_temp,
-       (SELECT COUNT(*) FROM weather) AS w_present
-     FROM windows`,
-    [hoursAgo(2), hoursAgo(24), hoursAgo(24 * 7), hoursAgo(3)],
-  );
+         windows.*,
+         (SELECT reported_at FROM latest) AS last_report_at,
+         (SELECT wind_direction_deg FROM weather) AS w_dir,
+         (SELECT wind_speed_kmh FROM weather) AS w_speed,
+         (SELECT precipitation_mm FROM weather) AS w_precip,
+         (SELECT temperature_c FROM weather) AS w_temp,
+         (SELECT COUNT(*) FROM weather) AS w_present
+       FROM windows`,
+      [hoursAgo(2), hoursAgo(24), hoursAgo(24 * 7), hoursAgo(3)],
+    ),
+    query<Row>(
+      `SELECT street FROM reports
+       WHERE status = 'visible' AND reported_at >= $1 AND street IS NOT NULL
+       GROUP BY street
+       ORDER BY COUNT(*) DESC
+       LIMIT 5`,
+      [hoursAgo(6)],
+    ),
+  ]);
 
   const row = result.rows[0];
-
-  const streets = await query<Row>(
-    `SELECT street FROM reports
-     WHERE status = 'visible' AND reported_at >= $1 AND street IS NOT NULL
-     GROUP BY street
-     ORDER BY COUNT(*) DESC
-     LIMIT 5`,
-    [hoursAgo(6)],
-  );
 
   return {
     reports2h: Number(row.count_2h),

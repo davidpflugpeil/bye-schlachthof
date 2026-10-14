@@ -14,9 +14,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const situation = await currentSituation();
-  const latest = (await recentReports(8)).map(toPublicReport);
-  const streets = await streetStats(new Date(Date.now() - 7 * 86_400_000).toISOString(), 6);
+  const [situation, recent, streets] = await Promise.all([
+    currentSituation(),
+    recentReports(8),
+    streetStats(new Date(Date.now() - 7 * 86_400_000).toISOString(), 6),
+  ]);
+  const latest = recent.map(toPublicReport);
 
   return (
     <div className="page-shell py-5 sm:py-8 lg:py-10">

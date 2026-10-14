@@ -16,8 +16,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AboutPage() {
-  const total = await totalReportCount();
-  const situation = await currentSituation();
+  const [total, situation] = await Promise.all([totalReportCount(), currentSituation()]);
 
   return (
     <div className="page-shell py-6 sm:py-10">

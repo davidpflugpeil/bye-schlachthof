@@ -296,6 +296,10 @@ NODE_ENV=production npm run start
 
 A regular backup of the file under `data/` preserves every report.
 
+**Vercel region:** `vercel.json` pins the functions to Frankfurt (`fra1`), next
+to the database and the neighbourhood. Vercel's default region, Washington
+(`iad1`), put an Atlantic crossing of about 90 ms on every database query.
+
 ---
 
 ## Accessibility and design

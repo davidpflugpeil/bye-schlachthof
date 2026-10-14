@@ -46,10 +46,12 @@ export default async function AdminSeite() {
     );
   }
 
-  const reports = await allReportsForAdmin(150);
-  const total = await totalReportCount();
-  const situation = await currentSituation();
-  const hiddenCount = await hiddenReportCount();
+  const [reports, total, situation, hiddenCount] = await Promise.all([
+    allReportsForAdmin(150),
+    totalReportCount(),
+    currentSituation(),
+    hiddenReportCount(),
+  ]);
 
   return (
     <div className="page-shell py-6 sm:py-10">

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
 import { TIMEZONE } from "./format";
 import { SLAUGHTERHOUSE } from "./geo";
 import type { Weather, WindHour } from "./types";
@@ -75,8 +77,7 @@ interface OpenMeteoHistory {
 }
 
 /** The past does not change, so a fetched range is reused for a few hours. */
-const HISTORY_TTL_MS = 3 * 3600_000;
-const historyCache = new Map<string, { expires: number; hours: WindHour[] }>();
+const HISTORY_TTL_SECONDS = 3 * 3600;
 
 const localHourFormat = new Intl.DateTimeFormat("en-CA", {
   timeZone: TIMEZONE,
@@ -96,24 +97,12 @@ function localHourKey(moment: Date): string {
 }
 
 /**
- * Hourly wind at the slaughterhouse between two Munich days (both inclusive),
- * up to the current hour. It is the baseline the analytics page compares the
- * reports against: how often did the wind blow this way at all? Returns null
- * on failure — the page then shows the reports without the comparison.
+ * Downloads one date range from the archive. Kept in Next's data cache, which
+ * every server instance shares — a cold start reuses the last download instead
+ * of waiting for Open-Meteo. Failures throw, so they are never cached.
  */
-export async function fetchWindHistory(
-  startDay: string,
-  endDay: string,
-  now: Date = new Date(),
-): Promise<WindHour[] | null> {
-  const key = `${startDay}:${endDay}`;
-  const cutoff = localHourKey(now);
-  const cached = historyCache.get(key);
-  if (cached && cached.expires > now.getTime()) {
-    return cached.hours.filter((hour) => hour.time <= cutoff);
-  }
-
-  try {
+const cachedWindHours = unstable_cache(
+  async (startDay: string, endDay: string): Promise<WindHour[]> => {
     // The historical forecast archive serves the same models as the live
     // forecast used for each report, back to 2022 and up to today.
     const url = new URL("https://historical-forecast-api.open-meteo.com/v1/forecast");
@@ -125,11 +114,8 @@ export async function fetchWindHistory(
     url.searchParams.set("wind_speed_unit", "kmh");
     url.searchParams.set("timezone", TIMEZONE);
 
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(4000),
-      next: { revalidate: HISTORY_TTL_MS / 1000 },
-    });
-    if (!response.ok) return null;
+    const response = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    if (!response.ok) throw new Error(`Open-Meteo answered ${response.status}`);
 
     const data = (await response.json()) as OpenMeteoHistory;
     const times = data.hourly?.time ?? [];
@@ -144,14 +130,28 @@ export async function fetchWindHistory(
         hours.push({ time, directionDeg, speedKmh });
       }
     });
-    if (hours.length === 0) return null;
+    if (hours.length === 0) throw new Error("Open-Meteo returned no hours");
+    return hours;
+  },
+  ["wind-history"],
+  { revalidate: HISTORY_TTL_SECONDS },
+);
 
-    for (const [entry, value] of historyCache) {
-      if (value.expires <= now.getTime()) historyCache.delete(entry);
-    }
-    historyCache.set(key, { expires: now.getTime() + HISTORY_TTL_MS, hours });
-
-    return hours.filter((hour) => hour.time <= cutoff);
+/**
+ * Hourly wind at the slaughterhouse between two Munich days (both inclusive),
+ * up to the current hour. It is the baseline the analytics page compares the
+ * reports against: how often did the wind blow this way at all? Returns null
+ * on failure — the page then shows the reports without the comparison.
+ */
+export async function fetchWindHistory(
+  startDay: string,
+  endDay: string,
+  now: Date = new Date(),
+): Promise<WindHour[] | null> {
+  try {
+    // Today's later hours are forecasts; cut them off at the current hour.
+    const cutoff = localHourKey(now);
+    return (await cachedWindHours(startDay, endDay)).filter((hour) => hour.time <= cutoff);
   } catch {
     return null;
   }
