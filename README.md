@@ -296,9 +296,28 @@ NODE_ENV=production npm run start
 
 A regular backup of the file under `data/` preserves every report.
 
-**Vercel region:** `vercel.json` pins the functions to Frankfurt (`fra1`), next
-to the database and the neighbourhood. Vercel's default region, Washington
-(`iad1`), put an Atlantic crossing of about 90 ms on every database query.
+**Hosting:** production runs on Railway — project `bye-schlachthof`, region EU
+West (Amsterdam). The `web` service builds this repository's Dockerfile on every
+push to `main`; `railway.json` sets the start command and the health check. The
+`Postgres` service is reachable only on Railway's private network, and `web`
+references it as `DATABASE_URL=${{Postgres.DATABASE_URL}}`. `BASE_URL` and
+`NEXT_PUBLIC_BASE_URL` are set to the public address, `ADMIN_PASSWORD`,
+`ADMIN_SECRET` and `REPORTER_SALT` to generated values — change them in the
+service's variables.
+
+`vercel.json` belongs to the earlier Vercel deployment: it pinned the functions
+to Frankfurt, next to that database.
+
+**Moving reports between databases:** `npm run db:import` copies every report
+and the address cache from `SOURCE_DATABASE_URL` into `TARGET_DATABASE_URL`,
+skipping reports the target already has, so it is safe to repeat. The Railway
+database has no public address; open one only for the import and remove it
+afterwards:
+
+```bash
+railway tcp-proxy create -s Postgres --port 5432
+railway tcp-proxy delete <proxy-id> -s Postgres
+```
 
 ---
 

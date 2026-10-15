@@ -11,7 +11,8 @@
     "icons": "python3 scripts/generate-icons.py",
     "map": "python3 scripts/fetch-map.py",
     "api:check": "./scripts/check-api.sh",
-    "db:migrate-sqlite": "node scripts/migrate-sqlite-to-postgres.mjs"
+    "db:migrate-sqlite": "node scripts/migrate-sqlite-to-postgres.mjs",
+    "db:import": "node scripts/import-reports.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
