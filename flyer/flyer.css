@@ -1,0 +1,694 @@
+/* =========================================================================
+   Printed flyers — A4 portrait. Tokens mirror src/app/globals.css.
+   Everything stays 10 mm clear of the paper edge, which home printers
+   cannot reach.
+   ========================================================================= */
+
+@font-face {
+  font-family: "Jakarta";
+  src: url("assets/fonts/PlusJakartaSans-Medium.ttf") format("truetype");
+  font-weight: 500;
+}
+@font-face {
+  font-family: "Jakarta";
+  src: url("assets/fonts/PlusJakartaSans-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+}
+@font-face {
+  font-family: "Jakarta";
+  src: url("assets/fonts/PlusJakartaSans-Bold.ttf") format("truetype");
+  font-weight: 700;
+}
+@font-face {
+  font-family: "Jakarta";
+  src: url("assets/fonts/PlusJakartaSans-ExtraBold.ttf") format("truetype");
+  font-weight: 800;
+}
+@font-face {
+  font-family: "Jakarta";
+  src: url("assets/fonts/PlusJakartaSans-BoldItalic.ttf") format("truetype");
+  font-weight: 700;
+  font-style: italic;
+}
+
+:root {
+  --brand: #0f5a52;
+  --brand-deep: #0a4139;
+  --brand-soft: #e2eeeb;
+  --brand-tint: #f0f7f5;
+  --ink: #16211f;
+  --ink-soft: #525d59;
+  --ink-faint: #6f7a75;
+  --line: #e5e2d9;
+  --line-strong: #d3cfc3;
+  --sand: #e9e0ce;
+  --sand-soft: #f6f1e6;
+  --sage: #7e9c8c;
+  /* Taken from the Kindl's robe trim */
+  --kindl-yellow: #fccc28;
+
+  --sev-1: #5b7a6b;
+  --sev-2: #8a6b24;
+  --sev-3: #a9591f;
+  --sev-4: #9b3d2a;
+  --sev-5: #7e2b26;
+  --sev-1-soft: #e7eee9;
+  --sev-2-soft: #f4ead4;
+  --sev-3-soft: #f8e3d1;
+  --sev-4-soft: #f7ded6;
+  --sev-5-soft: #f3d6d3;
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Jakarta", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  color: var(--ink);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+h1,
+h2,
+h3,
+p,
+ol,
+ul {
+  margin: 0;
+}
+
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+ol,
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+img {
+  display: block;
+}
+
+.page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 210mm;
+  height: 297mm;
+  padding: 10mm;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* Opened in a browser: show the sheet on a desk */
+@media screen {
+  body {
+    padding: 12mm 0;
+    background: #d9d7d0;
+  }
+  .page {
+    margin: 0 auto;
+    box-shadow: 0 2mm 10mm rgba(22, 33, 31, 0.18);
+  }
+}
+
+/* =========================================================================
+   Shared pieces
+   ========================================================================= */
+
+.icon {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.qr {
+  flex-shrink: 0;
+}
+.qr img {
+  width: 100%;
+  height: auto;
+}
+
+.url {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--brand);
+  white-space: nowrap;
+}
+
+.eyebrow {
+  font-size: 10.5pt;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Numbered steps */
+.steps {
+  display: grid;
+  gap: 3.2mm;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 7.5mm 1fr;
+  align-items: center;
+  gap: 3.5mm;
+  font-size: 12.5pt;
+  line-height: 1.3;
+  color: var(--ink-soft);
+}
+.steps li::before {
+  content: counter(step);
+  counter-increment: step;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 7.5mm;
+  height: 7.5mm;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font-size: 11pt;
+  font-weight: 800;
+}
+.steps {
+  counter-reset: step;
+}
+.steps b {
+  font-weight: 800;
+  color: var(--ink);
+}
+
+/* Reassurance chips */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5mm;
+}
+.chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.8mm;
+  padding: 2mm 3.6mm 2mm 3mm;
+  border-radius: 99mm;
+  background: var(--brand-soft);
+  color: var(--brand-deep);
+  font-size: 10.5pt;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chips .icon {
+  font-size: 11pt;
+  stroke-width: 3;
+}
+
+/* Legal line and thanks */
+.imprint {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8mm;
+  padding-top: 3.5mm;
+  border-top: 0.3mm solid var(--line);
+  font-size: 7.5pt;
+  line-height: 1.45;
+  color: var(--ink-faint);
+}
+.imprint p {
+  max-width: 128mm;
+}
+.imprint strong {
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.imprint .thanks {
+  flex-shrink: 0;
+  font-size: 9.5pt;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--brand);
+  white-space: nowrap;
+}
+
+/* =========================================================================
+   1 · „Nase voll?" — teal hero with the Kindl
+   ========================================================================= */
+
+.nase .hero {
+  position: relative;
+  padding: 12mm 12mm 11mm;
+  border-radius: 6mm;
+  background: var(--brand);
+  color: #fff;
+}
+.nase .hero .eyebrow {
+  color: #a9d3c9;
+}
+.nase .hero h1 {
+  margin-top: 4mm;
+  font-size: 39mm;
+  font-weight: 800;
+  line-height: 0.86;
+  letter-spacing: -0.045em;
+}
+.nase .hero h1 em {
+  font-style: normal;
+  color: var(--kindl-yellow);
+}
+.nase .hero-lead {
+  max-width: 104mm;
+  margin-top: 6.5mm;
+  font-size: 19pt;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.nase .hero-lead strong {
+  font-weight: 800;
+  color: var(--kindl-yellow);
+}
+.nase .hero-kindl {
+  position: absolute;
+  top: 17mm;
+  right: 11mm;
+  width: 68mm;
+  transform: rotate(6deg);
+}
+
+.nase .why {
+  margin-top: 7mm;
+  padding: 0 2mm;
+}
+.nase .why h2 {
+  font-size: 15pt;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--brand);
+}
+.nase .why p {
+  margin-top: 2mm;
+  font-size: 12.5pt;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.nase .why strong {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.nase .cta {
+  display: flex;
+  align-items: center;
+  gap: 8mm;
+  margin-top: 7mm;
+  padding: 6mm 7mm 6mm 6mm;
+  border-radius: 6mm;
+  background: var(--brand-tint);
+  border: 0.4mm solid var(--brand-soft);
+}
+.nase .cta .qr {
+  width: 66mm;
+}
+.nase .cta-title {
+  font-size: 21pt;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+.nase .cta .steps {
+  margin-top: 4.5mm;
+}
+.nase .cta .url {
+  margin-top: 5mm;
+  font-size: 22pt;
+}
+
+.nase .chips {
+  margin-top: 6mm;
+  padding: 0 1mm;
+}
+
+.nase .imprint {
+  margin-top: auto;
+}
+
+/* =========================================================================
+   2 · „Jede Nase zählt." — what the reports add up to
+   ========================================================================= */
+
+.zaehlt .brandbar {
+  display: flex;
+  align-items: center;
+  gap: 4mm;
+}
+.zaehlt .brandbar img {
+  width: 15mm;
+}
+.zaehlt .brandbar .name {
+  font-size: 15pt;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+.zaehlt .brandbar .tagline {
+  font-size: 10pt;
+  color: var(--ink-soft);
+}
+
+.zaehlt h1 {
+  margin-top: 9mm;
+  font-size: 27mm;
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+  color: var(--brand);
+}
+.zaehlt h1 mark {
+  padding: 0 1.5mm;
+  margin: 0 -1.5mm;
+  background: linear-gradient(transparent 58%, var(--kindl-yellow) 58%, var(--kindl-yellow) 90%, transparent 90%);
+  color: inherit;
+}
+.zaehlt .lead {
+  max-width: 172mm;
+  margin-top: 6mm;
+  font-size: 15pt;
+  font-weight: 600;
+  line-height: 1.42;
+  color: var(--ink-soft);
+}
+.zaehlt .lead strong {
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.zaehlt .formula {
+  display: grid;
+  grid-template-columns: 1fr 4mm 1fr 4mm 1fr 5mm 1.1fr;
+  align-items: stretch;
+  gap: 1.5mm;
+  margin-top: 8mm;
+}
+.zaehlt .term {
+  padding: 4mm 3.5mm 4mm;
+  border-radius: 5mm;
+  background: var(--sand-soft);
+}
+.zaehlt .term .badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 10mm;
+  height: 10mm;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--brand);
+  font-size: 15pt;
+}
+.zaehlt .term h3 {
+  margin-top: 3mm;
+  font-size: 12pt;
+  white-space: nowrap;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.zaehlt .term p {
+  margin-top: 1mm;
+  font-size: 9.5pt;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+.zaehlt .term.result {
+  background: var(--brand);
+  color: #fff;
+}
+.zaehlt .term.result .badge {
+  background: var(--kindl-yellow);
+  color: var(--brand-deep);
+}
+.zaehlt .term.result p {
+  color: #cfe5df;
+}
+.zaehlt .op {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18pt;
+  font-weight: 800;
+  color: var(--sage);
+}
+
+.zaehlt .scale {
+  margin-top: 7mm;
+}
+.zaehlt .scale h2 {
+  font-size: 13pt;
+  font-weight: 800;
+}
+.zaehlt .scale h2 span {
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.zaehlt .levels {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2.5mm;
+  margin-top: 3.5mm;
+}
+.zaehlt .levels li {
+  padding: 2.2mm 2mm 2.6mm;
+  border-radius: 4mm;
+  border-top: 1.6mm solid currentColor;
+  text-align: center;
+}
+.zaehlt .levels b {
+  display: block;
+  font-size: 18pt;
+  font-weight: 800;
+  line-height: 1.05;
+}
+.zaehlt .levels span {
+  display: block;
+  margin-top: 0.5mm;
+  font-size: 10pt;
+  font-weight: 700;
+  color: var(--ink);
+}
+.zaehlt .levels .l1 { color: var(--sev-1); background: var(--sev-1-soft); }
+.zaehlt .levels .l2 { color: var(--sev-2); background: var(--sev-2-soft); }
+.zaehlt .levels .l3 { color: var(--sev-3); background: var(--sev-3-soft); }
+.zaehlt .levels .l4 { color: var(--sev-4); background: var(--sev-4-soft); }
+.zaehlt .levels .l5 { color: var(--sev-5); background: var(--sev-5-soft); }
+
+.zaehlt .cta {
+  display: flex;
+  align-items: center;
+  gap: 8mm;
+  margin-top: auto;
+  margin-bottom: 6mm;
+  padding: 5mm 6mm 5mm 5mm;
+  border: 0.6mm solid var(--brand);
+  border-radius: 6mm;
+}
+.zaehlt .cta .qr {
+  width: 56mm;
+}
+.zaehlt .cta-title {
+  font-size: 22pt;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+.zaehlt .cta-text {
+  margin-top: 2.5mm;
+  font-size: 12pt;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.zaehlt .cta .url {
+  margin-top: 4mm;
+  font-size: 22pt;
+}
+.zaehlt .cta .chips {
+  margin-top: 4mm;
+}
+
+/* =========================================================================
+   3 · Tear-off flyer — tabs with a small code to take along
+   ========================================================================= */
+
+.zettel .top {
+  display: grid;
+  grid-template-columns: 58mm 1fr;
+  align-items: center;
+  gap: 9mm;
+}
+.zettel .top img {
+  width: 58mm;
+}
+.zettel .eyebrow {
+  color: var(--brand);
+}
+.zettel h1 {
+  margin-top: 3mm;
+  font-size: 20.5mm;
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+.zettel h1 em {
+  font-style: normal;
+  color: var(--brand);
+}
+/* The font's apostrophe carries a wide right side bearing; at headline size it reads as a space */
+.zettel h1 .apostrophe {
+  margin-right: -0.055em;
+}
+.zettel .lead {
+  margin-top: 5mm;
+  font-size: 15pt;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.zettel .body {
+  display: grid;
+  grid-template-columns: 1fr 62mm;
+  gap: 9mm;
+  align-items: center;
+  margin-top: 9mm;
+  padding: 7mm 7mm 7mm 8mm;
+  border-radius: 6mm;
+  background: var(--brand-tint);
+  border: 0.4mm solid var(--brand-soft);
+}
+.zettel .body .steps li {
+  font-size: 12pt;
+}
+.zettel .why {
+  margin-top: 5mm;
+  font-size: 11pt;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.zettel .why strong {
+  font-weight: 700;
+  color: var(--ink);
+}
+.zettel .qr-col {
+  text-align: center;
+}
+.zettel .qr-col .url {
+  margin-top: 2.5mm;
+  font-size: 13.5pt;
+}
+
+.zettel .tip {
+  display: flex;
+  align-items: center;
+  gap: 3.5mm;
+  margin-top: 6mm;
+  padding: 0 2mm;
+  font-size: 11pt;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.zettel .tip .icon {
+  font-size: 17pt;
+  color: var(--brand);
+}
+.zettel .tip b {
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.zettel .imprint {
+  margin-top: auto;
+  margin-bottom: 5mm;
+}
+
+/* The tab row runs to the bottom margin; cut along the dashed lines */
+.zettel .tabs-head {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  margin: 0 0 2mm 1mm;
+  font-size: 8.5pt;
+  font-weight: 700;
+  color: var(--ink-faint);
+}
+.zettel .tabs-head .icon {
+  font-size: 12pt;
+  stroke-width: 1.8;
+}
+.zettel .tabs {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  height: 70mm;
+  border-top: 0.35mm dashed var(--line-strong);
+}
+.zettel .tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.5mm;
+  padding: 3.5mm 1.5mm 0;
+  border-left: 0.35mm dashed var(--line-strong);
+}
+.zettel .tab:first-child {
+  border-left: 0;
+}
+.zettel .tab .qr {
+  width: 20.5mm;
+}
+.zettel .tab-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  height: 40mm;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.zettel .tab-text b {
+  font-size: 10pt;
+  font-weight: 800;
+  color: var(--brand);
+}
+.zettel .tab-text span {
+  font-size: 8pt;
+  font-weight: 700;
+  color: var(--ink-soft);
+}

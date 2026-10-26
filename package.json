@@ -10,6 +10,7 @@
     "seed": "node scripts/seed.mjs",
     "icons": "python3 scripts/generate-icons.py",
     "api:check": "./scripts/check-api.sh",
+    "flyers": "node scripts/build-flyers.mjs",
     "db:migrate-sqlite": "node scripts/migrate-sqlite-to-postgres.mjs"
   },
   "dependencies": {

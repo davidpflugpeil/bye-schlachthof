@@ -4,6 +4,7 @@ node_modules
 .github
 data
 assets
+flyer
 .env
 .env.local
 *.md

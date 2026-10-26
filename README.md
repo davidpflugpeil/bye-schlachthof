@@ -31,6 +31,7 @@ The app then runs on <http://localhost:3000>.
 | `npm run seed` | 14 days of test data (`npm run seed -- 30` for 30 days) |
 | `npm run icons` | Regenerate all icon sizes from `assets/coat-of-arms.png` |
 | `npm run api:check` | Exercise every API endpoint |
+| `npm run flyers` | Render the printable flyers in `flyer/` to PDF (requires Playwright) |
 
 ---
 
@@ -62,7 +63,8 @@ src/
     ui/           Design system primitives
   lib/            Database, weather, geo, formatting, API layer
 data/             SQLite file, created on first start
-scripts/          seed, icon generation, API check
+scripts/          seed, icon generation, API check, flyer rendering
+flyer/            A4 flyers with a QR code to the site — HTML source and PDFs
 ```
 
 Page URLs stay German (`/melden`, `/ueber`, `/kurzbefehl`, `/datenschutz`) —
