@@ -35,10 +35,10 @@ was checked by decoding the rendered PDFs.
 
 ## Imprint
 
-Printed matter distributed in public names the person responsible
-(V.i.S.d.P.), the same person as in the website's imprint. Anyone else who
-distributes the flyers under their own name changes that line in the HTML
-files.
+„Jede Nase zählt.“ and the tear-off flyer name the person responsible
+(V.i.S.d.P.), the same person as in the website's imprint. „Nase voll?“
+carries no imprint line. Anyone else who distributes the flyers under their
+own name changes that line in the HTML files.
 
 ## Editing
 

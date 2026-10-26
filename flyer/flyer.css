@@ -251,7 +251,7 @@ img {
   font-weight: 700;
   color: var(--ink-soft);
 }
-.imprint .thanks {
+.thanks {
   flex-shrink: 0;
   font-size: 9.5pt;
   font-weight: 700;
@@ -266,7 +266,7 @@ img {
 
 .nase .hero {
   position: relative;
-  padding: 12mm 12mm 11mm;
+  padding: 13mm 12mm 13mm;
   border-radius: 6mm;
   background: var(--brand);
   color: #fff;
@@ -276,7 +276,7 @@ img {
 }
 .nase .hero h1 {
   margin-top: 4mm;
-  font-size: 39mm;
+  font-size: 41mm;
   font-weight: 800;
   line-height: 0.86;
   letter-spacing: -0.045em;
@@ -286,9 +286,8 @@ img {
   color: var(--kindl-yellow);
 }
 .nase .hero-lead {
-  max-width: 104mm;
   margin-top: 6.5mm;
-  font-size: 19pt;
+  font-size: 20pt;
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.01em;
@@ -306,7 +305,7 @@ img {
 }
 
 .nase .why {
-  margin-top: 7mm;
+  margin-top: 9mm;
   padding: 0 2mm;
 }
 .nase .why h2 {
@@ -317,7 +316,7 @@ img {
 }
 .nase .why p {
   margin-top: 2mm;
-  font-size: 12.5pt;
+  font-size: 13pt;
   line-height: 1.5;
   color: var(--ink-soft);
 }
@@ -330,14 +329,14 @@ img {
   display: flex;
   align-items: center;
   gap: 8mm;
-  margin-top: 7mm;
-  padding: 6mm 7mm 6mm 6mm;
+  margin-top: 9mm;
+  padding: 7mm 7mm 7mm 6mm;
   border-radius: 6mm;
   background: var(--brand-tint);
   border: 0.4mm solid var(--brand-soft);
 }
 .nase .cta .qr {
-  width: 66mm;
+  width: 68mm;
 }
 .nase .cta-title {
   font-size: 21pt;
@@ -353,13 +352,13 @@ img {
   font-size: 22pt;
 }
 
-.nase .chips {
-  margin-top: 6mm;
-  padding: 0 1mm;
-}
-
-.nase .imprint {
+.nase .closing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6mm;
   margin-top: auto;
+  padding: 0 1mm;
 }
 
 /* =========================================================================
